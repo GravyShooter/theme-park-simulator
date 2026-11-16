@@ -108,6 +108,12 @@
     #startBtn{margin-top:10px;font-size:18px;padding:10px;}
     .fine{font-size:11px;margin-top:7px;}
   }
+  #rideHUD{position:absolute;left:50%;top:112px;transform:translateX(-50%);background:rgba(29,42,38,.88);color:#fff8ea;border:2px solid #fff;border-radius:99px;padding:7px 18px;font-weight:800;font-size:14px;display:none;text-align:center;box-shadow:var(--shadow);white-space:nowrap;max-width:94vw;}
+  #rideHUD.show{display:block;}
+  #rideHUD small{display:block;font-size:11px;opacity:.8;font-weight:700;}
+  #bloodVig{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 140px rgba(140,0,0,0);transition:box-shadow .3s;}
+  #bloodVig.on{box-shadow:inset 0 0 140px rgba(140,0,0,.65);}
+  #viewTag{position:absolute;left:10px;top:64px;background:var(--panel);border:2px solid var(--ink);border-radius:99px;padding:5px 12px;font-weight:800;font-size:12px;box-shadow:2px 2px 0 rgba(29,42,38,.7);}
   #dayCard{display:none;}
   #dayCard.show{display:flex;}
   #dayCard h1{color:var(--teal-d);}
@@ -149,6 +155,9 @@
     <p style="text-align:center;margin-top:4px">You are the red dot. Try not to be.</p>
   </div>
 
+  <div id="viewTag">👁 FIRST PERSON — you ARE a guest now · V to switch view</div>
+  <div id="rideHUD"></div>
+  <div id="bloodVig"></div>
   <div id="toast"></div>
   <div id="prompt"></div>
   <div id="crosshair">＋</div>
@@ -164,35 +173,35 @@
       <button class="tbtn" id="btnUse">USE</button>
     </div>
   </div>
-  <div id="helpBar">WASD move · Drag mouse to look · <b>E</b> interact · <b>Click</b> shoot (armed) · <b>R</b> coaster controls · Shift run</div>
+  <div id="helpBar">WASD move · Drag to look (first person) · <b>E</b> ride / interact / exit ride · <b>V</b> first / third person · <b>Click</b> shoot (armed) · <b>R</b> coaster controls · Shift run</div>
 </div>
 
 <!-- START -->
 <div class="overlay" id="startOverlay">
   <div class="card">
     <h1>Theme Park <em>Simulator</em></h1>
-    <p class="tagline">A real park sim. What happens inside it is entirely up to you.</p>
+    <p class="tagline">A real park sim — and now you ARE a guest. First person. You can ride everything.</p>
     <div class="cols">
       <div class="col">
-        <h2>🎢 Play it straight</h2>
+        <h2>🎢 Ride it yourself — first person</h2>
         <ul>
-          <li>Guests arrive, ride, eat, and pay — happy guests pay more</li>
-          <li>Build stalls, benches, trees &amp; lamps to grow the park</li>
-          <li>Keep the rating up and watch the cash roll in, day after day</li>
+          <li><b>Sky Titan Wheel</b> (Epic Universe scale), <b>Dragon Carousel</b> &amp; <b>STEEL FURY</b> — a Cedar Point–style giga-coaster: 24 m lift hill, near-vertical drop, airtime hills &amp; helix</li>
+          <li>Walk to any ride and press <b>E</b> to board. First-person seat cam with G-force FOV kick, banking &amp; shake. <b>E</b> again to get off</li>
+          <li>Guests still arrive, ride, eat, and pay — happy guests pay more. Build stalls, benches, trees &amp; lamps</li>
         </ul>
       </div>
       <div class="col chaos">
-        <h2>🔫 …or don't</h2>
+        <h2>🔫 …or don't — now with gore</h2>
         <ul>
-          <li>The shooting gallery gun works on targets. It also works on <i>everything else</i></li>
-          <li>The coaster controls have a derail switch. Nobody's watching it</li>
-          <li>Security will chase you. Get caught and it's a fine, not a funeral — this is a family park</li>
+          <li>The gallery cork gun works on targets. On people it now <i>draws blood</i> — bursts, pools &amp; splatter physics</li>
+          <li>Derail STEEL FURY from the booth and the wreck plows through crowds. That gets… messy</li>
+          <li>Security will chase you. Get caught and it's a fine. The blood stays on the pavement a while</li>
         </ul>
       </div>
     </div>
     <div class="keys">
-      <b>W A S D</b> move &nbsp; <b>Mouse drag</b> look around &nbsp; <b>E</b> interact / pick up &nbsp; <b>Click</b> shoot &nbsp; <b>R</b> at the coaster booth &nbsp; <b>Shift</b> run<br>
-      On a phone: left stick to move, drag to look, USE and SHOOT buttons appear.
+      <b>W A S D</b> move &nbsp; <b>Mouse drag</b> look (first person) &nbsp; <b>E</b> board ride / interact / exit ride &nbsp; <b>V</b> first ↔ third person &nbsp; <b>Click</b> shoot &nbsp; <b>R</b> at the coaster booth &nbsp; <b>Shift</b> run<br>
+      On a phone: left stick to move, drag to look, USE boards / exits rides, SHOOT fires.
     </div>
     <button id="startBtn">Open the Park ▶</button>
     <p class="fine">Browser prototype — stylized 3D, built to test the design. Photo-realistic graphics are the Unreal PC build's job; this version proves the game loop, not the final look. Cork guns sting; nobody gets hurt.</p>
@@ -223,7 +232,9 @@ var S = {
   happiness:82, chaos:0, wanted:0, armed:false,
   dayEarned:0, dayGuests:0, dayIncidents:0, totalIncidents:0,
   coasterState:"running", // running | wrecked | repairing
-  buildMode:null, paused:false, bustedTimer:0, heat:0
+  buildMode:null, paused:false, bustedTimer:0, heat:0,
+  riding:null, // null | 'ferris' | 'carousel' | 'coaster'
+  viewFP:true, rideTime:0, gForce:1, rideSpeed:0
 };
 var PARK = 46; // half-size of park grounds
 
@@ -319,14 +330,34 @@ var clouds=[];
 })();
 
 /* procedural textures */
+function brickTexture(){
+  var c=document.createElement("canvas"); c.width=c.height=256; var g=c.getContext("2d");
+  g.fillStyle="#9c4a38"; g.fillRect(0,0,256,256);
+  for(var r=0;r<8;r++)for(var b=0;b<4;b++){
+    var bx=(b*64+(r%2?32:0))%256, by=r*32;
+    g.fillStyle=["#a85440","#8f4232","#b05a44"][Math.floor(Math.random()*3)]; g.fillRect(bx+2,by+2,60,28);
+    for(var n=0;n<40;n++){ g.fillStyle="rgba(60,20,10,0.18)"; g.fillRect(bx+Math.random()*60,by+Math.random()*28,2,2); }
+  }
+  g.fillStyle="rgba(230,215,190,0.9)"; for(var m=0;m<8;m++)g.fillRect(0,m*32,256,2.5);
+  var t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=8; return t;
+}
+function plateTexture(){
+  var c=document.createElement("canvas"); c.width=c.height=256; var g=c.getContext("2d");
+  g.fillStyle="#5a666d"; g.fillRect(0,0,256,256);
+  for(var i=0;i<3000;i++){ g.fillStyle=Math.random()<0.5?"#4c585e":"#6a767d"; g.fillRect(Math.random()*256,Math.random()*256,2,2); }
+  g.fillStyle="rgba(255,255,255,0.35)";
+  for(var y=0;y<8;y++)for(var x=0;x<8;x++){ g.save(); g.translate(x*32+16,y*32+16); g.rotate(0.6); g.fillRect(-7,-2,14,4); g.restore(); }
+  var t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(3,3); t.anisotropy=8; return t;
+}
 function grassTexture(){
-  var c=document.createElement("canvas"); c.width=c.height=512; var g=c.getContext("2d");
-  g.fillStyle="#67a84e"; g.fillRect(0,0,512,512);
+  var c=document.createElement("canvas"); c.width=c.height=1024; var g=c.getContext("2d");
+  g.fillStyle="#67a84e"; g.fillRect(0,0,1024,1024);
   var shades=["#5da34c","#77c061","#5c9a48","#71b657","#649f50"];
-  for(var i=0;i<900;i++){ g.fillStyle=shades[i%5]; g.globalAlpha=0.22+Math.random()*0.3; var r=8+Math.random()*30; g.beginPath(); g.ellipse(Math.random()*512,Math.random()*512,r,r*0.6,Math.random()*3,0,7); g.fill(); }
+  for(var i=0;i<2600;i++){ g.fillStyle=shades[i%5]; g.globalAlpha=0.22+Math.random()*0.3; var r=10+Math.random()*44; g.beginPath(); g.ellipse(Math.random()*1024,Math.random()*1024,r,r*0.6,Math.random()*3,0,7); g.fill(); }
   g.globalAlpha=1;
-  for(var j=0;j<5200;j++){ g.fillStyle=Math.random()<0.5?"#548f43":"#7fc46a"; g.fillRect(Math.random()*512,Math.random()*512,2,3); }
-  for(var k=0;k<260;k++){ g.fillStyle="#8a7a4a"; g.globalAlpha=0.25; g.fillRect(Math.random()*512,Math.random()*512,3,2); g.globalAlpha=1; }
+  for(var j=0;j<16000;j++){ g.fillStyle=Math.random()<0.5?"#548f43":"#7fc46a"; g.fillRect(Math.random()*1024,Math.random()*1024,2,4); }
+  for(var k=0;k<700;k++){ g.fillStyle="#8a7a4a"; g.globalAlpha=0.25; g.fillRect(Math.random()*1024,Math.random()*1024,3,2); g.globalAlpha=1; }
+  for(var d2=0;d2<900;d2++){ g.fillStyle="rgba(40,70,30,0.35)"; g.fillRect(Math.random()*1024,Math.random()*1024,1.5,6); }
   var t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(26,26); t.anisotropy=8; return t;
 }
 function concreteTexture(){
@@ -500,22 +531,37 @@ makeStall(-8,-14,0); makeStall(9,10,Math.PI);
 /* ============ FERRIS WHEEL (NW) ============ */
 var ferris=new THREE.Group(); ferris.position.set(-26,0,-26); scene.add(ferris);
 var wheelSpin=new THREE.Group();
+var ferrisCabs=[];
 (function(){
-  cyl(0.35,0.45,7,STEEL,-2.4,3.5,0,ferris).rotation.x=0.35;
-  cyl(0.35,0.45,7,STEEL,2.4,3.5,0,ferris).rotation.x=-0.35;
-  wheelSpin.position.set(0,7.4,0); ferris.add(wheelSpin);
-  var rim=new THREE.Mesh(new THREE.TorusGeometry(6,0.22,10,36), REDPAINT); rim.castShadow=true; wheelSpin.add(rim);
-  var rim2=new THREE.Mesh(new THREE.TorusGeometry(6,0.14,8,36), GOLDPAINT); rim2.position.z=0.9; wheelSpin.add(rim2);
-  var rim3=rim2.clone(); rim3.position.z=-0.9; wheelSpin.add(rim3);
-  for(var i=0;i<8;i++){
-    var a=i/8*Math.PI*2;
-    var spoke=cyl(0.07,0.07,11.6,CREAMPAINT,0,0,0,wheelSpin); spoke.rotation.z=a+Math.PI/2;
-    var cab=box(1.3,1.1,1.3,[0xf2b134,0x4db6ac,0x64b5f6,0xba68c8][i%4],Math.cos(a)*6,Math.sin(a)*6,0,wheelSpin);
-    cab.userData.isCab=true; cab.userData.ang=a;
+  cyl(0.4,0.55,10.5,STEEL,-3.2,5.2,0,ferris).rotation.x=0.32;
+  cyl(0.4,0.55,10.5,STEEL,3.2,5.2,0,ferris).rotation.x=-0.32;
+  box(9,0.5,1.2,DARKSTEEL,0,0.25,0,ferris);
+  wheelSpin.position.set(0,10.2,0); ferris.add(wheelSpin);
+  var rim=new THREE.Mesh(new THREE.TorusGeometry(8.4,0.26,10,48), TEALPAINT); rim.castShadow=true; wheelSpin.add(rim);
+  var rim2=new THREE.Mesh(new THREE.TorusGeometry(8.4,0.15,8,48), GOLDPAINT); rim2.position.z=1.1; wheelSpin.add(rim2);
+  var rim3=rim2.clone(); rim3.position.z=-1.1; wheelSpin.add(rim3);
+  /* Epic-style LED ring: emissive bulbs all the way round */
+  var bulbMat=new THREE.MeshStandardMaterial({color:0xfff2b0,emissive:0xffc94d,emissiveIntensity:1.4,roughness:0.4});
+  for(var bi=0;bi<28;bi++){
+    var ba=bi/28*Math.PI*2;
+    var bulb=new THREE.Mesh(new THREE.SphereGeometry(0.16,8,8), bulbMat);
+    bulb.position.set(Math.cos(ba)*8.4,Math.sin(ba)*8.4,1.25); wheelSpin.add(bulb);
+    var bulb2=bulb.clone(); bulb2.position.z=-1.25; wheelSpin.add(bulb2);
   }
-  cyl(0.5,0.5,1.6,TEALPAINT,0,7.4,0,ferris).rotation.x=Math.PI/2;
-  box(5,0.4,3,0x8a5a2b,0,0.2,3.4,ferris);
-  collide(-26,-26,4);
+  for(var i=0;i<10;i++){
+    var a=i/10*Math.PI*2;
+    var spoke=cyl(0.08,0.08,16.4,CREAMPAINT,0,0,0,wheelSpin); spoke.rotation.z=a+Math.PI/2;
+    var cabG=new THREE.Group(); cabG.position.set(Math.cos(a)*8.4,Math.sin(a)*8.4,0); wheelSpin.add(cabG);
+    var cab=box(1.6,1.3,1.6, matPhys([0xf2b134,0x4db6ac,0x64b5f6,0xba68c8,0xef5350][i%5]),0,0,0,cabG);
+    box(1.7,0.18,1.7,GOLDPAINT,0,0.75,0,cabG);
+    cab.userData.isCab=true; cab.userData.ang=a; cabG.userData.isCabGroup=true; cabG.userData.ang=a;
+    ferrisCabs.push(cabG);
+  }
+  cyl(0.6,0.6,2,TEALPAINT,0,10.2,0,ferris).rotation.x=Math.PI/2;
+  var plateMat=new THREE.MeshStandardMaterial({map:plateTexture(),roughness:0.7,metalness:0.5});
+  var plat=new THREE.Mesh(new THREE.BoxGeometry(6,0.35,4),plateMat); plat.position.set(0,0.18,4.2); plat.receiveShadow=true; ferris.add(plat);
+  box(6,0.3,0.4,0xd64541,0,2.6,5.8,ferris); /* SKY TITAN sign bar */
+  collide(-26,-26,4.5);
 })();
 
 /* ============ CAROUSEL (W) ============ */
@@ -533,29 +579,56 @@ var carouselSpin=new THREE.Group();
   }
   var roof=new THREE.Mesh(new THREE.ConeGeometry(5.4,2.2,20), new THREE.MeshStandardMaterial({map:stripeTexture("#0e6b5c","#fff8ea"),roughness:0.8}));
   roof.position.y=5.2; roof.castShadow=true; carousel.add(roof);
+  /* Dragon Carousel crown: gold finial + glowing jewel ring (Islands of Adventure flavour) */
+  var finial=new THREE.Mesh(new THREE.SphereGeometry(0.55,12,12), new THREE.MeshStandardMaterial({color:0xf2b134,emissive:0xcc8800,emissiveIntensity:0.5,roughness:0.3,metalness:0.7}));
+  finial.position.y=6.7; carousel.add(finial);
+  var jewelMat=new THREE.MeshStandardMaterial({color:0x7ee8c7,emissive:0x1db386,emissiveIntensity:1.2,roughness:0.3});
+  for(var ji=0;ji<12;ji++){
+    var ja=ji/12*Math.PI*2;
+    var jewel=new THREE.Mesh(new THREE.SphereGeometry(0.17,8,8), jewelMat);
+    jewel.position.set(Math.cos(ja)*4.6,4.35,Math.sin(ja)*4.6); carousel.add(jewel);
+  }
+  var brickMat=new THREE.MeshStandardMaterial({map:brickTexture(),roughness:0.9});
+  var baseWall=new THREE.Mesh(new THREE.CylinderGeometry(4.7,4.8,0.55,24), brickMat);
+  baseWall.position.y=0.28; baseWall.receiveShadow=true; carousel.add(baseWall);
   collide(-28,10,4.6);
 })();
 
 /* ============ COASTER (E) ============ */
 var coasterPts=[];
 (function(){
-  var raw=[[-8,-14],[6,-16],[14,-8],[15,2],[10,10],[0,13],[-10,9],[-14,-2]];
+  /* STEEL FURY — Cedar Point giga layout: station, 24 m lift hill, steep drop,
+     airtime hills, overbank + low helix, brake run. Heights do the physics. */
+  var raw=[[-13,-15],[-4,-17],[5,-15],[11,-6],[13,3],[8,11],[0,14],[-8,12],[-13,5],[-14,-5]];
   raw.forEach(function(p,i){
-    var h=[2.5,9,13,6,11,4,10,5][i];
+    var h=[2.2,10,24,7,15,5,12,3.2,8,3.5][i];
     coasterPts.push(new THREE.Vector3(p[0],h,p[1]));
   });
 })();
 var coasterCurve=new THREE.CatmullRomCurve3(coasterPts,true,"catmullrom",0.6);
 var coasterGroup=new THREE.Group(); coasterGroup.position.set(24,0,-8); scene.add(coasterGroup);
 (function(){
-  var tube=new THREE.Mesh(new THREE.TubeGeometry(coasterCurve,120,0.16,6,true), REDPAINT);
+  var TRACKBLUE=matMetal(0x1f6fb2);
+  var tube=new THREE.Mesh(new THREE.TubeGeometry(coasterCurve,180,0.17,6,true), TRACKBLUE);
   tube.castShadow=true; coasterGroup.add(tube);
-  var tube2=new THREE.Mesh(new THREE.TubeGeometry(coasterCurve,120,0.16,6,true), GOLDPAINT);
-  tube2.scale.set(1.04,1,1.04); coasterGroup.add(tube2);
-  for(var i=0;i<16;i++){
-    var p=coasterCurve.getPointAt(i/16);
-    if(p.y>2.2) cyl(0.14,0.18,p.y-0.4,STEEL,p.x,(p.y-0.4)/2,p.z,coasterGroup);
+  var tube2=new THREE.Mesh(new THREE.TubeGeometry(coasterCurve,180,0.17,6,true), matMetal(0x9fc6e8));
+  tube2.scale.set(1.05,1,1.05); coasterGroup.add(tube2);
+  /* cross-ties for that steel-coaster lattice look */
+  for(var ti2=0;ti2<60;ti2++){
+    var tp=coasterCurve.getPointAt(ti2/60), tt=coasterCurve.getTangentAt(ti2/60);
+    var tie=box(1.15,0.09,0.14,DARKSTEEL,tp.x,tp.y-0.12,tp.z,coasterGroup,false);
+    tie.lookAt(tp.clone().add(tt)); tie.rotateY(Math.PI/2);
   }
+  for(var i=0;i<26;i++){
+    var p=coasterCurve.getPointAt(i/26);
+    if(p.y>2.2){ cyl(0.16,0.22,p.y-0.4,STEEL,p.x,(p.y-0.4)/2,p.z,coasterGroup); cyl(0.16,0.22,p.y-0.4,STEEL,p.x+0.9,(p.y-0.4)/2,p.z,coasterGroup); }
+  }
+  /* station: brick + diamond-plate platform at the low point */
+  var brickMat2=new THREE.MeshStandardMaterial({map:brickTexture(),roughness:0.9});
+  var stBase=new THREE.Mesh(new THREE.BoxGeometry(7,1,4.5),brickMat2); stBase.position.set(-13,0.5,-11); stBase.castShadow=true; stBase.receiveShadow=true; coasterGroup.add(stBase);
+  var plateMat2=new THREE.MeshStandardMaterial({map:plateTexture(),roughness:0.65,metalness:0.5});
+  var stTop=new THREE.Mesh(new THREE.BoxGeometry(7.4,0.18,4.9),plateMat2); stTop.position.set(-13,1.08,-11); stTop.receiveShadow=true; coasterGroup.add(stTop);
+  box(7.4,0.25,0.5,0xd64541,-13,3.4,-8.9,coasterGroup); /* STEEL FURY station sign bar */
   // control booth
   box(2.2,2.4,2.2,0x37474f,-13,1.2,15,coasterGroup);
   box(2.6,0.3,2.6,0xd64541,-13,2.6,15,coasterGroup);
@@ -570,7 +643,7 @@ for(var ci=0;ci<3;ci++){
   box(1.5,0.5,0.95, 0x37474f, 0,0.95,0, car);
   coasterGroup.add(car); trainCars.push(car);
 }
-var train={u:0, speed:0.028, wreck:null, wreckT:0, smoke:[]};
+var train={u:0, speed:0.02, wreck:null, wreckT:0, smoke:[]};
 function placeTrain(){
   for(var i=0;i<trainCars.length;i++){
     var u=((train.u - i*0.035)%1+1)%1;
@@ -619,6 +692,42 @@ function puff(pos,n,spread){
     s.m.scale.setScalar(0.6+Math.random());
     s.vel.set((Math.random()-0.5)*(spread||2),1.4+Math.random(),(Math.random()-0.5)*(spread||2));
     used++;
+  }
+}
+
+/* ============================== GORE ==============================
+   Blood droplets with real gravity + drag, ground splats that pool and
+   slowly fade, and a screen-edge blood flash for the player. */
+var bloodPool=[];
+for(var bi2=0;bi2<90;bi2++){
+  var bm=new THREE.Mesh(new THREE.SphereGeometry(0.09,6,6), new THREE.MeshStandardMaterial({color:0x8a0f0f,roughness:0.25,envMapIntensity:0.8}));
+  bm.visible=false; scene.add(bm); bloodPool.push({m:bm,life:0,vel:new THREE.Vector3()});
+}
+var splatPool=[];
+for(var si2=0;si2<36;si2++){
+  var sm2=new THREE.Mesh(new THREE.CircleGeometry(0.55,12), new THREE.MeshStandardMaterial({color:0x7d0d0d,roughness:0.3,transparent:true,opacity:0}));
+  sm2.rotation.x=-Math.PI/2; sm2.visible=false; sm2.position.y=0.045; scene.add(sm2); splatPool.push({m:sm2,life:0});
+}
+function bloodBurst(pos,n,power){
+  var used=0; power=power||1;
+  for(var i=0;i<bloodPool.length&&used<n;i++){
+    var b=bloodPool[i]; if(b.life>0)continue;
+    b.life=0.7+Math.random()*0.6; b.m.visible=true;
+    b.m.position.set(pos.x+(Math.random()-0.5)*0.3, Math.max(0.3,pos.y||1), pos.z+(Math.random()-0.5)*0.3);
+    b.m.scale.setScalar(0.6+Math.random()*1.1);
+    b.vel.set((Math.random()-0.5)*4.4*power, 2+Math.random()*3.2*power, (Math.random()-0.5)*4.4*power);
+    used++;
+  }
+  bloodSplat(pos.x,pos.z, 0.7+Math.random()*0.7);
+  var bv=document.getElementById("bloodVig");
+  if(bv){ bv.classList.add("on"); setTimeout(function(){bv.classList.remove("on");},450); }
+}
+function bloodSplat(x,z,scale){
+  for(var i=0;i<splatPool.length;i++){
+    var s=splatPool[i]; if(s.life>0)continue;
+    s.life=26; s.m.visible=true; s.m.position.x=x; s.m.position.z=z;
+    s.m.scale.setScalar(scale||1); s.m.material.opacity=0.88; s.m.rotation.z=Math.random()*6;
+    return;
   }
 }
 
@@ -696,7 +805,15 @@ function moveToward(ent,tx,tz,dt,speed){
 
 /* ============================== INPUT ============================== */
 var keys={};
-addEventListener("keydown",function(e){ keys[e.key.toLowerCase()]=true; if(e.key.toLowerCase()==="e")doInteract(); if(e.key.toLowerCase()==="r")tryDerail(); });
+addEventListener("keydown",function(e){ keys[e.key.toLowerCase()]=true; if(e.key.toLowerCase()==="e")doInteract(); if(e.key.toLowerCase()==="r")tryDerail(); if(e.key.toLowerCase()==="v")toggleView(); });
+var lookPitch=0;
+function toggleView(){
+  if(S.riding){ toast("You're on a ride — first person only up here. E to get off."); return; }
+  S.viewFP=!S.viewFP;
+  player.visible=S.viewFP?false:true;
+  document.getElementById("viewTag").textContent=S.viewFP?"👁 FIRST PERSON — you ARE a guest now · V to switch view":"🎥 THIRD PERSON · V for first person";
+  toast(S.viewFP?"First person. You're a guest now.":"Third person — manager cam.");
+}
 addEventListener("keyup",function(e){ keys[e.key.toLowerCase()]=false; });
 var camYaw=Math.PI, camPitch=0.32, dragging=false, dragMoved=0, lastPX=0, lastPY=0;
 var el=renderer.domElement;
@@ -706,6 +823,7 @@ addEventListener("pointermove",function(e){
   var dx=e.clientX-lastPX, dy=e.clientY-lastPY; lastPX=e.clientX; lastPY=e.clientY;
   dragMoved+=Math.abs(dx)+Math.abs(dy);
   camYaw-=dx*0.005; camPitch=Math.max(0.08,Math.min(1.1,camPitch+dy*0.004));
+  lookPitch=Math.max(-1.25,Math.min(1.25,lookPitch-dy*0.004));
 });
 addEventListener("pointerup",function(e){
   if(dragging&&dragMoved<6&&S.armed&&S.started&&!S.paused&&e.target===el) shoot();
@@ -761,8 +879,85 @@ function nearGallery(){ return distTo(galleryPos.x,galleryPos.z)<6.5; }
 function nearBooth(){ return distTo(24-13,-8+15)<5; }
 function nearWreck(){ return S.coasterState==="wrecked"&&train.wreck&&distTo(train.wreck.getWorldPosition(new THREE.Vector3()).x, train.wreck.getWorldPosition(new THREE.Vector3()).z)<7; }
 
+/* ============================== RIDING (first person) ============================== */
+var RIDE_INFO={
+  ferris:{name:"🎡 SKY TITAN WHEEL", x:-26, z:-21.5, r:7.5, blurb:"Epic-scale observation wheel. Slow, huge, gorgeous at sunset."},
+  carousel:{name:"🐉 DRAGON CAROUSEL", x:-28, z:10, r:7.2, blurb:"Jeweled crown, galloping horses. Pure Islands of Adventure."},
+  coaster:{name:"🎢 STEEL FURY", x:11, z:-19, r:6.5, blurb:"Cedar Point giga-coaster. 24 m lift, huge drop, airtime. Hands up!"}
+};
+function nearRide(){
+  for(var k in RIDE_INFO){ var R=RIDE_INFO[k]; if(Math.hypot(player.position.x-R.x,player.position.z-R.z)<R.r)return k; }
+  return null;
+}
+function boardRide(type){
+  if(type==="coaster"&&S.coasterState!=="running"){ toast("STEEL FURY is down. Repair it first — $200 in the Park panel."); return; }
+  if(S.armed){ toast("No guns on the rides. Put it back at the gallery first."); return; }
+  S.riding=type; S.rideTime=0; lookPitch=0; S._rideYaw0=camYaw;
+  player.visible=false;
+  document.getElementById("rideHUD").classList.add("show");
+  document.getElementById("viewTag").textContent="👁 RIDING — first person · drag to look around";
+  toast(RIDE_INFO[type].name+" — you're ON it. Drag to look around. E to get off.",3000);
+  tone(620,0.15,"sine",0.1,880);
+}
+function exitRide(){
+  var type=S.riding; S.riding=null;
+  document.getElementById("rideHUD").classList.remove("show");
+  if(type==="ferris")player.position.set(-26,0,-20.5);
+  else if(type==="carousel")player.position.set(-28,0,17);
+  else if(type==="coaster")player.position.set(11,0,-15.5);
+  player.visible=S.viewFP?false:true;
+  document.getElementById("viewTag").textContent=S.viewFP?"👁 FIRST PERSON — you ARE a guest now · V to switch view":"🎥 THIRD PERSON · V for first person";
+  S.happiness=Math.min(100,S.happiness+1.5);
+  toast("That was brilliant. +happiness — riding your own park rules.",2200);
+}
+var _prevTanY=0;
+function updateRideCamera(dt,now){
+  S.rideTime+=dt;
+  var hud=document.getElementById("rideHUD");
+  var fx2=-Math.sin(camYaw), fz2=-Math.cos(camYaw), cp3=Math.cos(lookPitch);
+  if(S.riding==="ferris"){
+    var cabW=new THREE.Vector3(); ferrisCabs[0].getWorldPosition(cabW);
+    camera.position.set(cabW.x, cabW.y+0.45, cabW.z);
+    camera.lookAt(camera.position.x+fx2*cp3, camera.position.y+Math.sin(lookPitch), camera.position.z+fz2*cp3);
+    if(Math.abs(camera.fov-62)>0.2){ camera.fov+=(62-camera.fov)*Math.min(1,6*dt); camera.updateProjectionMatrix(); }
+    hud.innerHTML="🎡 SKY TITAN WHEEL<small>Height "+Math.max(0,camera.position.y).toFixed(1)+" m · the whole park below you · E to get off</small>";
+  }
+  else if(S.riding==="carousel"){
+    var horse=null;
+    carouselSpin.children.forEach(function(c){ if(c.userData.horse&&!horse)horse=c; });
+    var hw=new THREE.Vector3(); horse.getWorldPosition(hw);
+    camera.position.set(hw.x, hw.y+0.95, hw.z);
+    camera.lookAt(camera.position.x+fx2*cp3, camera.position.y+Math.sin(lookPitch), camera.position.z+fz2*cp3);
+    if(Math.abs(camera.fov-64)>0.2){ camera.fov+=(64-camera.fov)*Math.min(1,6*dt); camera.updateProjectionMatrix(); }
+    hud.innerHTML="🐉 DRAGON CAROUSEL<small>Galloping at full tilt · E to get off</small>";
+  }
+  else if(S.riding==="coaster"){
+    var cw=new THREE.Vector3(); trainCars[0].getWorldPosition(cw);
+    camera.position.set(cw.x, cw.y+1.05, cw.z);
+    var tan=coasterCurve.getTangentAt(train.u);
+    /* free-look offset: how far you've dragged away from facing forward */
+    var off=camYaw-(S._rideYaw0||0);
+    var cs=Math.cos(off), sn=Math.sin(off);
+    var lx=tan.x*cs - tan.z*sn, lz=tan.x*sn + tan.z*cs;
+    var ly=tan.y + Math.sin(lookPitch)*1.4;
+    camera.lookAt(camera.position.x+lx*10, camera.position.y+ly*10, camera.position.z+lz*10);
+    camera.rotation.z+=THREE.MathUtils.clamp((tan.z)*2.2,-0.5,0.5)*0.35; /* banking lean */
+    /* G-force from vertical acceleration + speed-based FOV kick and shake */
+    var vy=tan.y*(S.rideSpeed||1);
+    S.gForce=THREE.MathUtils.clamp(1+Math.abs(vy-_prevTanY)*9+(S.rideSpeed>1.3?0.9:0), 0.4, 4.6);
+    _prevTanY=vy;
+    var targetFov=64+Math.max(0,(S.rideSpeed-0.6))*16;
+    if(Math.abs(camera.fov-targetFov)>0.2){ camera.fov+=(targetFov-camera.fov)*Math.min(1,5*dt); camera.updateProjectionMatrix(); }
+    if(S.rideSpeed>1.35){ camera.position.x+=(Math.random()-0.5)*0.05; camera.position.y+=(Math.random()-0.5)*0.05; }
+    var kmh=Math.round((S.rideSpeed||1)*46);
+    hud.innerHTML="🎢 STEEL FURY<small>"+kmh+" km/h · "+Math.max(0,cw.y).toFixed(1)+" m up · "+S.gForce.toFixed(1)+" G · E to bail at the station</small>";
+    if(S.rideSpeed>1.5&&Math.random()<dt*0.7)sfxScream();
+  }
+}
 function doInteract(){
   if(!S.started||S.paused)return; audio();
+  if(S.riding){ exitRide(); return; }
+  var rk=nearRide(); if(rk){ boardRide(rk); return; }
   if(nearGallery()){
     if(!S.armed){
       S.armed=true; gunMesh.visible=true;
@@ -788,7 +983,7 @@ document.getElementById("dropGunBtn").addEventListener("click",dropGun);
 
 var raycaster=new THREE.Raycaster();
 function shoot(){
-  if(!S.armed)return; audio();
+  if(!S.armed||S.riding)return; audio();
   var tNow=performance.now(); if(tNow-lastShot<170)return; lastShot=tNow;
   sfxPop(); recoil=1;
   /* a real cork: physical projectile with gravity, drag, and bounce */
@@ -812,6 +1007,7 @@ function scareNearby(pos,radius){
 function hitGuest(g,dir){
   if(g.state==="down")return;
   g.state="down"; g.downT=3.5; g.m.rotation.x=Math.PI/2; g.m.position.y=0.25;
+  bloodBurst(new THREE.Vector3(g.m.position.x,1.1,g.m.position.z), 14, 1);
   if(dir){ var l=Math.hypot(dir.x,dir.z)||1; g.kx=dir.x/l*3.4; g.kz=dir.z/l*3.4; } else { g.kx=0; g.kz=0; }
   sfxScream(); incident(1);
   toast("You shot a guest with a cork gun. They're fine. Your rating is not.",2400);
@@ -820,6 +1016,7 @@ function hitGuest(g,dir){
 function hitGuard(gd){
   if(gd.stunT>0)return;
   gd.stunT=4; gd.m.rotation.x=Math.PI/2; gd.m.position.y=0.25;
+  bloodBurst(new THREE.Vector3(gd.m.position.x,1.1,gd.m.position.z), 16, 1.1);
   sfxScream(); incident(2);
   toast("You shot SECURITY. Bold. Wanted level up.",2400);
   scareNearby(gd.m.position,9);
@@ -986,14 +1183,17 @@ function animate(){
   var now=performance.now();
 
   /* rides always animate */
-  wheelSpin.rotation.z-=dt*0.25;
-  wheelSpin.children.forEach(function(c){ if(c.userData.isCab){ c.rotation.z=wheelSpin.rotation.z*-1 + Math.sin(now*0.0013 + c.userData.ang*2.7)*0.08; } });
+  wheelSpin.rotation.z-=dt*0.16;
+  ferrisCabs.forEach(function(c){ c.rotation.z=wheelSpin.rotation.z*-1 + Math.sin(now*0.0013 + c.userData.ang*2.7)*0.05; });
   clouds.forEach(function(cl){ cl.position.x+=dt*cl.userData.speed; if(cl.position.x>175)cl.position.x=-175; });
   carouselSpin.rotation.y+=dt*0.7;
   carouselSpin.children.forEach(function(c){ if(c.userData.horse)c.position.y=1.15+Math.sin(now*0.004+c.userData.ang*3)*0.18; });
   if(S.coasterState==="running"){
     var cyc=coasterCurve.getPointAt(train.u).y;
-    var sf=THREE.MathUtils.clamp(0.5+(13-cyc)*0.06,0.45,1.3); /* gravity: fast downhill, slow climbing */
+    /* energy physics: potential (height) trades for speed — crawls up the 24 m
+       lift hill, screams down the drop, floats over airtime hills */
+    var sf=THREE.MathUtils.clamp(0.32+(24.5-cyc)*0.052,0.3,1.85);
+    S.rideSpeed=sf; train._sf=sf;
     train.u=(train.u+train.speed*dt*sf)%1; placeTrain();
   }
 
@@ -1024,7 +1224,7 @@ function animate(){
     if(spd>3.5){
       for(var wg=0;wg<guests.length;wg++){
         var gg2=guests[wg];
-        if(gg2.state!=="down"&&Math.hypot(gg2.m.position.x-wx,gg2.m.position.z-wz)<1.7) hitGuest(gg2,vel);
+        if(gg2.state!=="down"&&Math.hypot(gg2.m.position.x-wx,gg2.m.position.z-wz)<1.7){ hitGuest(gg2,vel); bloodBurst(new THREE.Vector3(wx,1,wz),22,1.9); bloodSplat(wx+(Math.random()-0.5)*2,wz+(Math.random()-0.5)*2,1.6); }
       }
       if(Math.random()<dt*8)puff(new THREE.Vector3(wx,0.5,wz),1,2);
     }
@@ -1034,6 +1234,19 @@ function animate(){
     if(s.life<=0)return; s.life-=dt;
     s.m.position.addScaledVector(s.vel,dt); s.m.scale.multiplyScalar(1+dt*0.8);
     s.m.material.opacity=Math.max(0,s.life*0.35);
+    if(s.life<=0)s.m.visible=false;
+  });
+  /* gore physics: droplets arc, splat on the ground, pools fade slowly */
+  bloodPool.forEach(function(b){
+    if(b.life<=0)return; b.life-=dt;
+    b.vel.y-=16*dt; b.vel.multiplyScalar(1-0.6*dt);
+    b.m.position.addScaledVector(b.vel,dt);
+    if(b.m.position.y<0.06){ bloodSplat(b.m.position.x,b.m.position.z,0.35+Math.random()*0.4); b.life=0; b.m.visible=false; return; }
+    if(b.life<=0)b.m.visible=false;
+  });
+  splatPool.forEach(function(s){
+    if(s.life<=0)return; s.life-=dt;
+    if(s.life<5)s.m.material.opacity=Math.max(0,s.life/5*0.88);
     if(s.life<=0)s.m.visible=false;
   });
   targets.forEach(function(t){ if(t.userData.down>0){ t.userData.down-=dt; if(t.userData.down<=0)t.rotation.x=Math.PI/2; } });
@@ -1061,11 +1274,12 @@ function animate(){
   var night=dayFrac>0.82||dayFrac<0.03;
   lampLights.forEach(function(L){ L.light.intensity=night?1.1:0; L.bulb.material.emissiveIntensity=night?1.6:0; if(L.glow)L.glow.material.opacity=night?0.5:0; });
 
-  /* ---- player movement ---- */
+  /* ---- player movement (input ignored while riding; sim keeps running) ---- */
   var ix=0,iz=0;
   if(keys["w"]||keys["arrowup"])iz-=1; if(keys["s"]||keys["arrowdown"])iz+=1;
   if(keys["a"]||keys["arrowleft"])ix-=1; if(keys["d"]||keys["arrowright"])ix+=1;
   ix+=stickVec.x; iz+=stickVec.y;
+  if(S.riding){ ix=0; iz=0; }
   var il=Math.hypot(ix,iz); if(il>1){ix/=il;iz/=il;}
   var run=(keys["shift"])?6.4:3.8;
   var fx=-Math.sin(camYaw), fz=-Math.cos(camYaw);
@@ -1086,14 +1300,25 @@ function animate(){
     player.rotation.y+=dyaw*Math.min(1,12*dt);
   }
   walkAnim({m:player,phase:0},dt,pSpeed>0.5);
-  /* camera follow */
-  var camDist=8.5, camH=2.2+camPitch*5;
-  var cxp=player.position.x - fx*camDist*-1, czp=player.position.z - fz*camDist*-1;
-  var desired=new THREE.Vector3(player.position.x + Math.sin(camYaw)*Math.cos(camPitch)*camDist, player.position.y+camH, player.position.z + Math.cos(camYaw)*Math.cos(camPitch)*camDist);
-  camera.position.lerp(desired,1-Math.pow(0.0001,dt));
-  camera.lookAt(player.position.x,player.position.y+1.6,player.position.z);
+  /* ---- camera: riding seat-cam > first person > third person ---- */
+  if(S.riding){
+    updateRideCamera(dt,now);
+  } else if(S.viewFP){
+    var bob=(pSpeed>0.5)?Math.sin(now*0.011)*0.045:0;
+    camera.position.set(player.position.x, player.position.y+1.62+bob, player.position.z);
+    var cp2=Math.cos(lookPitch);
+    var lookDir=new THREE.Vector3(-Math.sin(camYaw)*cp2, Math.sin(lookPitch), -Math.cos(camYaw)*cp2);
+    camera.lookAt(camera.position.clone().add(lookDir));
+    if(Math.abs(camera.fov-66)>0.2){ camera.fov+=(66-camera.fov)*Math.min(1,8*dt); camera.updateProjectionMatrix(); }
+  } else {
+    var camDist=8.5, camH=2.2+camPitch*5;
+    var desired=new THREE.Vector3(player.position.x + Math.sin(camYaw)*Math.cos(camPitch)*camDist, player.position.y+camH, player.position.z + Math.cos(camYaw)*Math.cos(camPitch)*camDist);
+    camera.position.lerp(desired,1-Math.pow(0.0001,dt));
+    camera.lookAt(player.position.x,player.position.y+1.6,player.position.z);
+    if(Math.abs(camera.fov-58)>0.2){ camera.fov+=(58-camera.fov)*Math.min(1,8*dt); camera.updateProjectionMatrix(); }
+  }
   recoil=Math.max(0,recoil-dt*4.5);
-  if(recoil>0)camera.rotation.x+=recoil*0.022; /* gun kick */
+  if(recoil>0&&!S.riding)camera.rotation.x+=recoil*0.022; /* gun kick */
   if(shakeT>0){ shakeT-=dt; camera.position.x+=(Math.random()-0.5)*shakeT*0.55; camera.position.y+=(Math.random()-0.5)*shakeT*0.55; }
 
   /* ---- cork projectiles ---- */
@@ -1172,7 +1397,7 @@ function animate(){
     var target=null, sp=gd.speed;
     if(S.wanted>0){
       target={x:player.position.x,z:player.position.z}; sp=4.1;
-      if(Math.hypot(gd.m.position.x-player.position.x,gd.m.position.z-player.position.z)<1.4){ busted(); }
+      if(!S.riding&&Math.hypot(gd.m.position.x-player.position.x,gd.m.position.z-player.position.z)<1.4){ busted(); }
     } else {
       var wps=[[-12,-20],[14,18],[-4,34],[20,-24],[-30,-2],[0,0]];
       var wp=wps[gd.wp%wps.length]; target={x:wp[0],z:wp[1]};
@@ -1206,6 +1431,10 @@ function animate(){
     promptT=0.15;
     var pr=document.getElementById("prompt"), txt=null;
     if(S.buildMode)txt=null;
+    else if(S.riding)txt="<b>E</b> Get off the ride";
+    else if(nearRide()==="ferris")txt="<b>E</b> Ride the SKY TITAN WHEEL 🎡";
+    else if(nearRide()==="carousel")txt="<b>E</b> Ride the DRAGON CAROUSEL 🐉";
+    else if(nearRide()==="coaster")txt="<b>E</b> Ride STEEL FURY 🎢 — if you dare";
     else if(nearGallery())txt=S.armed?"<b>E</b> Gallery — you're holding the gun":"<b>E</b> Pick up the cork gun";
     else if(nearBooth()&&S.coasterState==="running")txt="<b>R</b> Coaster controls — there's a derail switch. Just saying.";
     else if(S.coasterState==="wrecked"&&nearWreck())txt="<b>E</b> Repair the coaster — $200";
@@ -1243,6 +1472,8 @@ document.getElementById("startBtn").addEventListener("click",function(){
   document.getElementById("startOverlay").style.display="none";
   document.getElementById("hud").classList.add("on");
   S.started=true;
+  player.visible=false; /* first person by default — you are a guest */
+  setTimeout(function(){ if(!S.riding)toast("Walk to any ride and press E to ride it — first person. 🎡🐉🎢",3800); },4600);
   toast("Gates open! Guests are arriving. Run it however you want.",3200);
   setTimeout(function(){ if(!S.armed)toast("Tip: rides + happy guests = steady cash. Building helps too (Park panel, top right).",3600); },4200);
 });

@@ -58,6 +58,8 @@
   #crosshair.on{display:block;}
   #gunTag{position:absolute;left:50%;top:calc(50% + 30px);transform:translateX(-50%);background:var(--red);color:#fff;font-weight:800;font-size:12px;padding:4px 12px;border-radius:99px;display:none;border:2px solid #fff;}
   #gunTag.on{display:block;}
+  #gunTag.real{background:#7c130d;border-color:#ffd9d0;animation:gunPulse 1s infinite;}
+  @keyframes gunPulse{0%,100%{transform:translateX(-50%) scale(1);}50%{transform:translateX(-50%) scale(1.06);}}
   #busted{position:absolute;inset:0;background:rgba(179,38,30,.35);display:none;align-items:center;justify-content:center;}
   #busted.on{display:flex;}
   #busted div{font-family:"Fredoka";font-size:clamp(40px,9vw,84px);color:#fff;letter-spacing:.12em;text-shadow:4px 4px 0 #7c130d;transform:rotate(-4deg);}
@@ -173,7 +175,7 @@
       <button class="tbtn" id="btnUse">USE</button>
     </div>
   </div>
-  <div id="helpBar">WASD move · Drag to look (first person) · <b>E</b> ride / interact / exit ride · <b>V</b> first / third person · <b>Click</b> shoot (armed) · <b>R</b> coaster controls · Shift run</div>
+  <div id="helpBar">WASD move · Drag to look (first person) · <b>E</b> ride / interact / take a downed guard's gun · <b>V</b> first / third person · <b>Click</b> shoot (armed) · <b>R</b> coaster controls · Shift run</div>
 </div>
 
 <!-- START -->
@@ -194,6 +196,7 @@
         <h2>🔫 …or don't — now with gore</h2>
         <ul>
           <li>The gallery cork gun works on targets. On people it now <i>draws blood</i> — bursts, pools &amp; splatter physics</li>
+          <li><b>Guards carry real guns.</b> Cork one down and his gun hits the pavement — walk over it, press <b>E</b>, and it's yours: faster, harder, drops people for real. Taking it spikes your wanted level hard</li>
           <li>Derail STEEL FURY from the booth and the wreck plows through crowds. That gets… messy</li>
           <li>Security will chase you. Get caught and it's a fine. The blood stays on the pavement a while</li>
         </ul>
@@ -229,7 +232,7 @@
 /* ============================== STATE ============================== */
 var S = {
   started:false, money:500, day:1, time:9*60, // minutes
-  happiness:82, chaos:0, wanted:0, armed:false,
+  happiness:82, chaos:0, wanted:0, armed:false, weapon:"none", // none | cork | real
   dayEarned:0, dayGuests:0, dayIncidents:0, totalIncidents:0,
   coasterState:"running", // running | wrecked | repairing
   buildMode:null, paused:false, bustedTimer:0, heat:0,
@@ -254,6 +257,7 @@ function sfxScream(){ tone(700,0.28,"sawtooth",0.07,1200); }
 function sfxCrash(){ tone(90,0.6,"sawtooth",0.22,35); tone(55,0.8,"square",0.15,28); }
 function sfxCoin(){ tone(950,0.07,"square",0.08); setTimeout(function(){tone(1350,0.12,"square",0.08);},60); }
 function sfxWhistle(){ tone(2100,0.14,"square",0.08); setTimeout(function(){tone(2100,0.14,"square",0.08);},170); }
+function sfxBang(){ tone(130,0.2,"sawtooth",0.3,38); tone(64,0.3,"square",0.22,30); tone(900,0.05,"square",0.1,200); }
 
 /* ============================== THREE SETUP ============================== */
 var container=document.getElementById("game");
@@ -764,8 +768,13 @@ function spawnGuard(x,z){
   var g=makePerson(0x1a3a5c, skinCols[Math.floor(Math.random()*skinCols.length)], 0x14202e);
   var hat=cyl(0.3,0.32,0.16,0x0d2138,0,1.86,0,g,10);
   box(0.62,0.05,0.62,0x0d2138,0,1.8,0,g);
+  /* the real gun: black steel, carried in the right hand — visible from across the park */
+  var gGun=new THREE.Group(); gGun.position.set(0.52,1.08,0.18); gGun.rotation.x=0.12; g.add(gGun);
+  box(0.13,0.17,0.72,0x141a1e,0,0,0.1,gGun);
+  box(0.07,0.07,0.34,0x05080a,0,0.04,0.5,gGun);
+  box(0.1,0.22,0.14,0x2b2b2b,0,-0.16,-0.18,gGun);
   g.position.set(x,0,z);
-  var guard={m:g, state:"patrol", tx:x, tz:z, speed:1.5, phase:Math.random()*7, wp:0, stunT:0};
+  var guard={m:g, state:"patrol", tx:x, tz:z, speed:1.5, phase:Math.random()*7, wp:0, stunT:0, gunMesh:gGun, hasGun:true};
   g.traverse(function(o){ o.userData.guardRef=guard; });
   guards.push(guard); return guard;
 }
@@ -775,11 +784,19 @@ spawnGuard(-12,-20); spawnGuard(14,18); spawnGuard(-4,34);
 var player=makePerson(0xd64541, 0xf1c27d, 0x263238);
 player.position.set(0,0,PARK-6);
 var gunMesh=box(0.14,0.2,0.7,0x6d4c41,0.5,1.15,0.3,player); gunMesh.visible=false;
+/* the guard's real gun, once it's yours: longer, black steel, nothing toy about it */
+var realGunMesh=new THREE.Group(); realGunMesh.position.set(0.5,1.15,0.3); player.add(realGunMesh);
+box(0.13,0.18,0.85,0x141a1e,0,0,0.12,realGunMesh);
+box(0.07,0.07,0.38,0x05080a,0,0.04,0.62,realGunMesh);
+box(0.1,0.24,0.14,0x2b2b2b,0,-0.17,-0.2,realGunMesh);
+realGunMesh.visible=false;
 box(0.5,0.14,0.52,0xf2b134,0,1.9,0,player); // cap
 var P={yaw:Math.PI, speed:0, vx:0, vz:0};
 var recoil=0, shakeT=0;
 var corkGeo=new THREE.CylinderGeometry(0.06,0.06,0.18,8); corkGeo.rotateX(Math.PI/2);
 var corkMat=new THREE.MeshStandardMaterial({color:0xd8b98a,roughness:0.7});
+var bulletGeo=new THREE.CylinderGeometry(0.035,0.035,0.34,8); bulletGeo.rotateX(Math.PI/2);
+var bulletMat=new THREE.MeshStandardMaterial({color:0x2a2f33,roughness:0.3,metalness:0.8,emissive:0xff9a3c,emissiveIntensity:0.7});
 var corks=[], lastShot=0;
 
 /* attractions guests aim for */
@@ -847,7 +864,7 @@ var stickVec={x:0,y:0};
     knob.style.left=(33+dx)+"px"; knob.style.top=(33+dy)+"px";
   }
   document.getElementById("btnUse").addEventListener("click",function(){ audio(); doInteract(); });
-  document.getElementById("btnShoot").addEventListener("click",function(){ audio(); if(S.armed)shoot(); else toast("No gun — the shooting gallery hands them out. Southeast corner."); });
+  document.getElementById("btnShoot").addEventListener("click",function(){ audio(); if(S.armed)shoot(); else toast("No gun — the shooting gallery hands out cork guns (SE). Guards carry the real ones."); });
   document.getElementById("menuBtn").addEventListener("click",function(){ document.getElementById("panel").classList.toggle("open"); });
 })();
 
@@ -879,6 +896,66 @@ function nearGallery(){ return distTo(galleryPos.x,galleryPos.z)<6.5; }
 function nearBooth(){ return distTo(24-13,-8+15)<5; }
 function nearWreck(){ return S.coasterState==="wrecked"&&train.wreck&&distTo(train.wreck.getWorldPosition(new THREE.Vector3()).x, train.wreck.getWorldPosition(new THREE.Vector3()).z)<7; }
 
+/* ============================== WEAPONS ==============================
+   Cork gun: gallery toy. Real gun: taken off a downed guard — hits
+   harder, drops people longer, and taking it spikes your wanted level. */
+function setWeapon(w){
+  S.weapon=w; S.armed=(w!=="none");
+  gunMesh.visible=(w==="cork");
+  realGunMesh.visible=(w==="real");
+  var gt=document.getElementById("gunTag");
+  if(w==="cork"){ gt.textContent="🔫 CORK GUN ARMED — it's a gallery toy. Mostly."; gt.classList.add("on"); gt.classList.remove("real"); }
+  else if(w==="real"){ gt.textContent="🔫 REAL GUN — taken off a guard. This is not a toy anymore."; gt.classList.add("on"); gt.classList.add("real"); }
+  else { gt.classList.remove("on"); gt.classList.remove("real"); }
+  document.getElementById("crosshair").classList.toggle("on",S.armed);
+  var db=document.getElementById("dropGunBtn");
+  db.style.display=S.armed?"block":"none";
+  db.textContent=(w==="real")?"Drop the real gun":"Put the gun back";
+}
+var droppedGuns=[];
+function dropGuardGun(gd){
+  if(!gd.hasGun)return;
+  gd.hasGun=false; if(gd.gunMesh)gd.gunMesh.visible=false;
+  var g=new THREE.Group();
+  g.position.set(gd.m.position.x+0.8,0.16,gd.m.position.z+0.5); g.rotation.y=Math.random()*3;
+  box(0.13,0.14,0.8,0x141a1e,0,0,0.05,g);
+  box(0.07,0.07,0.3,0x05080a,0,0.03,0.55,g);
+  box(0.1,0.2,0.13,0x2b2b2b,0,-0.05,-0.28,g);
+  var ring=new THREE.Mesh(new THREE.TorusGeometry(0.8,0.05,8,26), new THREE.MeshStandardMaterial({color:0xf2b134,emissive:0xcc8800,emissiveIntensity:1.3,roughness:0.4}));
+  ring.rotation.x=Math.PI/2; ring.position.y=-0.06; g.add(ring);
+  scene.add(g);
+  droppedGuns.push({m:g, ring:ring, guard:gd});
+}
+function nearestDroppedGun(){
+  var best=null, bd=2.6;
+  droppedGuns.forEach(function(d){
+    var dd=Math.hypot(player.position.x-d.m.position.x, player.position.z-d.m.position.z);
+    if(dd<bd){ bd=dd; best=d; }
+  });
+  return best;
+}
+function removeDroppedGun(d){
+  scene.remove(d.m);
+  var i=droppedGuns.indexOf(d); if(i>=0)droppedGuns.splice(i,1);
+}
+function reclaimGuardGun(gd){
+  for(var i=droppedGuns.length-1;i>=0;i--){
+    if(droppedGuns[i].guard===gd){ removeDroppedGun(droppedGuns[i]); gd.hasGun=true; if(gd.gunMesh)gd.gunMesh.visible=true; return; }
+  }
+}
+function restoreAllGuardGuns(){
+  for(var i=droppedGuns.length-1;i>=0;i--)removeDroppedGun(droppedGuns[i]);
+  guards.forEach(function(gd){ gd.hasGun=true; if(gd.gunMesh)gd.gunMesh.visible=true; });
+}
+function takeGuardGun(d){
+  if(S.weapon==="real"){ toast("You're already holding a real gun. One is plenty."); return; }
+  removeDroppedGun(d);
+  setWeapon("real");
+  tone(240,0.12,"square",0.14,140); setTimeout(function(){tone(420,0.1,"square",0.12,300);},90);
+  incident(2); addChaos(20); /* taking it spikes wanted hard, on top of the knockdown */
+  toast("🔫 You took the guard's REAL gun. Faster, harder, drops people for real — and EVERY guard saw you take it. Wanted spiked.",3600);
+}
+
 /* ============================== RIDING (first person) ============================== */
 var RIDE_INFO={
   ferris:{name:"🎡 SKY TITAN WHEEL", x:-26, z:-21.5, r:7.5, blurb:"Epic-scale observation wheel. Slow, huge, gorgeous at sunset."},
@@ -891,7 +968,7 @@ function nearRide(){
 }
 function boardRide(type){
   if(type==="coaster"&&S.coasterState!=="running"){ toast("STEEL FURY is down. Repair it first — $200 in the Park panel."); return; }
-  if(S.armed){ toast("No guns on the rides. Put it back at the gallery first."); return; }
+  if(S.armed){ toast(S.weapon==="real"?"Absolutely no real guns on the rides. Drop it first (Park panel).":"No guns on the rides. Put it back at the gallery first."); return; }
   S.riding=type; S.rideTime=0; lookPitch=0; S._rideYaw0=camYaw;
   player.visible=false;
   document.getElementById("rideHUD").classList.add("show");
@@ -957,13 +1034,12 @@ function updateRideCamera(dt,now){
 function doInteract(){
   if(!S.started||S.paused)return; audio();
   if(S.riding){ exitRide(); return; }
+  var dg=nearestDroppedGun(); if(dg){ takeGuardGun(dg); return; }
   var rk=nearRide(); if(rk){ boardRide(rk); return; }
   if(nearGallery()){
+    if(S.weapon==="real"){ toast("The gallery cork gun is a downgrade now. You're holding the real thing."); return; }
     if(!S.armed){
-      S.armed=true; gunMesh.visible=true;
-      document.getElementById("crosshair").classList.add("on");
-      document.getElementById("gunTag").classList.add("on");
-      document.getElementById("dropGunBtn").style.display="block";
+      setWeapon("cork");
       toast("You picked up the gallery cork gun. Targets are on the wall. Everything else is a decision.",3200);
     } else toast("You're already holding it. The targets are right there. Just saying.");
     return;
@@ -973,25 +1049,30 @@ function doInteract(){
   toast("Nothing to use here. The gallery (SE) has guns, the coaster booth (E) has controls.");
 }
 function dropGun(){
-  S.armed=false; gunMesh.visible=false;
-  document.getElementById("crosshair").classList.remove("on");
-  document.getElementById("gunTag").classList.remove("on");
-  document.getElementById("dropGunBtn").style.display="none";
-  toast("Gun returned. Model citizen. For now.");
+  var wasReal=(S.weapon==="real");
+  setWeapon("none");
+  toast(wasReal?"Real gun dropped. Security quietly takes it back. Smart-ish.":"Gun returned. Model citizen. For now.");
 }
 document.getElementById("dropGunBtn").addEventListener("click",dropGun);
 
 var raycaster=new THREE.Raycaster();
 function shoot(){
   if(!S.armed||S.riding)return; audio();
-  var tNow=performance.now(); if(tNow-lastShot<170)return; lastShot=tNow;
-  sfxPop(); recoil=1;
-  /* a real cork: physical projectile with gravity, drag, and bounce */
+  var real=(S.weapon==="real");
+  var tNow=performance.now(); if(tNow-lastShot<(real?115:170))return; lastShot=tNow;
   var dir=new THREE.Vector3(); camera.getWorldDirection(dir);
   var start=player.position.clone(); start.y=1.5; start.addScaledVector(dir,0.9);
-  var m=new THREE.Mesh(corkGeo,corkMat); m.position.copy(start); m.castShadow=true; scene.add(m);
-  corks.push({m:m, vel:dir.clone().multiplyScalar(40), life:2.6, spin:4+Math.random()*7});
-  puff(start,1,0.4);
+  if(real){
+    sfxBang(); recoil=2.1; shakeT=Math.max(shakeT,0.1);
+    var bm=new THREE.Mesh(bulletGeo,bulletMat); bm.position.copy(start); bm.castShadow=true; scene.add(bm);
+    corks.push({m:bm, vel:dir.clone().multiplyScalar(95), life:1.5, spin:1.5, type:"bullet"});
+    puff(start,2,0.7);
+  } else {
+    sfxPop(); recoil=1;
+    var m=new THREE.Mesh(corkGeo,corkMat); m.position.copy(start); m.castShadow=true; scene.add(m);
+    corks.push({m:m, vel:dir.clone().multiplyScalar(40), life:2.6, spin:4+Math.random()*7, type:"cork"});
+    puff(start,1,0.4);
+  }
 }
 function hitTarget(t){
   if(t.userData.down>0)return;
@@ -1004,22 +1085,23 @@ function scareNearby(pos,radius){
     if(g.state!=="down"&&Math.hypot(g.m.position.x-pos.x,g.m.position.z-pos.z)<radius){ g.state="flee"; g.tx=pos.x+(g.m.position.x-pos.x)*3; g.tz=pos.z+(g.m.position.z-pos.z)*3; g.wait=2.5; }
   });
 }
-function hitGuest(g,dir){
+function hitGuest(g,dir,isReal){
   if(g.state==="down")return;
-  g.state="down"; g.downT=3.5; g.m.rotation.x=Math.PI/2; g.m.position.y=0.25;
-  bloodBurst(new THREE.Vector3(g.m.position.x,1.1,g.m.position.z), 14, 1);
-  if(dir){ var l=Math.hypot(dir.x,dir.z)||1; g.kx=dir.x/l*3.4; g.kz=dir.z/l*3.4; } else { g.kx=0; g.kz=0; }
-  sfxScream(); incident(1);
-  toast("You shot a guest with a cork gun. They're fine. Your rating is not.",2400);
-  scareNearby(g.m.position,9);
+  g.state="down"; g.downT=isReal?9:3.5; g.m.rotation.x=Math.PI/2; g.m.position.y=0.25;
+  bloodBurst(new THREE.Vector3(g.m.position.x,1.1,g.m.position.z), isReal?30:14, isReal?1.7:1);
+  if(dir){ var l=Math.hypot(dir.x,dir.z)||1; var kb=isReal?6:3.4; g.kx=dir.x/l*kb; g.kz=dir.z/l*kb; } else { g.kx=0; g.kz=0; }
+  sfxScream(); incident(isReal?2:1);
+  toast(isReal?"You shot a guest with a REAL gun. They are DOWN and not getting up soon.":"You shot a guest with a cork gun. They're fine. Your rating is not.",2400);
+  scareNearby(g.m.position,isReal?13:9);
 }
-function hitGuard(gd){
+function hitGuard(gd,isReal){
   if(gd.stunT>0)return;
-  gd.stunT=4; gd.m.rotation.x=Math.PI/2; gd.m.position.y=0.25;
-  bloodBurst(new THREE.Vector3(gd.m.position.x,1.1,gd.m.position.z), 16, 1.1);
-  sfxScream(); incident(2);
-  toast("You shot SECURITY. Bold. Wanted level up.",2400);
-  scareNearby(gd.m.position,9);
+  gd.stunT=isReal?9:4; gd.m.rotation.x=Math.PI/2; gd.m.position.y=0.25;
+  bloodBurst(new THREE.Vector3(gd.m.position.x,1.1,gd.m.position.z), isReal?28:16, isReal?1.6:1.1);
+  sfxScream(); incident(isReal?3:2);
+  dropGuardGun(gd);
+  toast(isReal?"Guard down — shot with a real gun. He's out cold, and his gun is gone either way.":"You knocked SECURITY down — and his REAL gun just hit the pavement. Walk over it and press E to take it.",2800);
+  scareNearby(gd.m.position,isReal?13:9);
 }
 
 function tryDerail(){
@@ -1171,10 +1253,8 @@ function finishBusted(){
   S.paused=false;
 }
 function dropGunSilent(){
-  S.armed=false; gunMesh.visible=false;
-  document.getElementById("crosshair").classList.remove("on");
-  document.getElementById("gunTag").classList.remove("on");
-  document.getElementById("dropGunBtn").style.display="none";
+  setWeapon("none");
+  restoreAllGuardGuns();
 }
 
 function animate(){
@@ -1250,6 +1330,8 @@ function animate(){
     if(s.life<=0)s.m.visible=false;
   });
   targets.forEach(function(t){ if(t.userData.down>0){ t.userData.down-=dt; if(t.userData.down<=0)t.rotation.x=Math.PI/2; } });
+  /* dropped guard guns: pulse the gold ring so the loot reads from a distance */
+  droppedGuns.forEach(function(d){ var pu=1+Math.sin(now*0.006)*0.16; d.ring.scale.set(pu,pu,1); });
 
   if(!S.started||S.paused){
     if(S.bustedTimer>0){ S.bustedTimer-=dt; if(S.bustedTimer<=0)finishBusted(); }
@@ -1321,10 +1403,11 @@ function animate(){
   if(recoil>0&&!S.riding)camera.rotation.x+=recoil*0.022; /* gun kick */
   if(shakeT>0){ shakeT-=dt; camera.position.x+=(Math.random()-0.5)*shakeT*0.55; camera.position.y+=(Math.random()-0.5)*shakeT*0.55; }
 
-  /* ---- cork projectiles ---- */
+  /* ---- projectiles: corks (floaty, bouncy) vs real bullets (fast, flat, final) ---- */
   for(var cki=corks.length-1;cki>=0;cki--){
     var ck=corks[cki]; ck.life-=dt;
-    ck.vel.y-=13*dt; ck.vel.multiplyScalar(1-0.25*dt); /* light cork: gravity + drag */
+    var isBullet=(ck.type==="bullet");
+    ck.vel.y-=(isBullet?3:13)*dt; ck.vel.multiplyScalar(1-(isBullet?0.04:0.25)*dt);
     ck.m.position.addScaledVector(ck.vel,dt);
     ck.m.rotation.z+=ck.spin*dt;
     var cp=ck.m.position, cdead=ck.life<=0;
@@ -1334,16 +1417,19 @@ function animate(){
     }
     if(!cdead)for(var cg=0;cg<guests.length;cg++){
       var cgg=guests[cg];
-      if(cgg.state!=="down"&&Math.abs(cp.x-cgg.m.position.x)<0.55&&Math.abs(cp.z-cgg.m.position.z)<0.55&&cp.y>0.2&&cp.y<1.95){ hitGuest(cgg,ck.vel); cdead=true; break; }
+      if(cgg.state!=="down"&&Math.abs(cp.x-cgg.m.position.x)<0.55&&Math.abs(cp.z-cgg.m.position.z)<0.55&&cp.y>0.2&&cp.y<1.95){ hitGuest(cgg,ck.vel,isBullet); cdead=true; break; }
     }
     if(!cdead)for(var cgd=0;cgd<guards.length;cgd++){
       var cgr=guards[cgd];
-      if(cgr.stunT<=0&&Math.abs(cp.x-cgr.m.position.x)<0.55&&Math.abs(cp.z-cgr.m.position.z)<0.55&&cp.y>0.2&&cp.y<1.95){ hitGuard(cgr); cdead=true; break; }
+      if(cgr.stunT<=0&&Math.abs(cp.x-cgr.m.position.x)<0.55&&Math.abs(cp.z-cgr.m.position.z)<0.55&&cp.y>0.2&&cp.y<1.95){ hitGuard(cgr,isBullet); cdead=true; break; }
     }
     if(cp.y<0.07){
-      cp.y=0.07;
-      if(Math.abs(ck.vel.y)>2.5){ ck.vel.y*=-0.35; ck.vel.x*=0.6; ck.vel.z*=0.6; }
-      else { ck.vel.set(0,0,0); ck.life=Math.min(ck.life,0.4); }
+      if(isBullet){ puff(cp,2,0.8); cdead=true; }
+      else{
+        cp.y=0.07;
+        if(Math.abs(ck.vel.y)>2.5){ ck.vel.y*=-0.35; ck.vel.x*=0.6; ck.vel.z*=0.6; }
+        else { ck.vel.set(0,0,0); ck.life=Math.min(ck.life,0.4); }
+      }
     }
     if(Math.abs(cp.x)>PARK||Math.abs(cp.z)>PARK){ puff(cp,1,0.5); cdead=true; }
     if(cdead){ scene.remove(ck.m); corks.splice(cki,1); }
@@ -1393,7 +1479,7 @@ function animate(){
 
   /* ---- guards ---- */
   guards.forEach(function(gd){
-    if(gd.stunT>0){ gd.stunT-=dt; if(gd.stunT<=0){ gd.m.rotation.x=0; gd.m.position.y=0; } return; }
+    if(gd.stunT>0){ gd.stunT-=dt; if(gd.stunT<=0){ gd.m.rotation.x=0; gd.m.position.y=0; reclaimGuardGun(gd); } return; }
     var target=null, sp=gd.speed;
     if(S.wanted>0){
       target={x:player.position.x,z:player.position.z}; sp=4.1;
@@ -1432,6 +1518,7 @@ function animate(){
     var pr=document.getElementById("prompt"), txt=null;
     if(S.buildMode)txt=null;
     else if(S.riding)txt="<b>E</b> Get off the ride";
+    else if(nearestDroppedGun())txt=S.weapon==="real"?"Another guard's gun — you've already got one":"<b>E</b> Take the guard's REAL gun 🔫 — wanted level will SPIKE";
     else if(nearRide()==="ferris")txt="<b>E</b> Ride the SKY TITAN WHEEL 🎡";
     else if(nearRide()==="carousel")txt="<b>E</b> Ride the DRAGON CAROUSEL 🐉";
     else if(nearRide()==="coaster")txt="<b>E</b> Ride STEEL FURY 🎢 — if you dare";
@@ -1452,6 +1539,7 @@ function animate(){
     dot(-26,-26,"#d64541",4); dot(-28,10,"#0e6b5c",4); dot(24,-8,"#b3261e",4); dot(26,26,"#6d4c41",4);
     guests.forEach(function(g){ dot(g.m.position.x,g.m.position.z, g.state==="down"?"#999":"#fff"); });
     guards.forEach(function(gd){ dot(gd.m.position.x,gd.m.position.z,"#1a3a5c",3); });
+    droppedGuns.forEach(function(d){ dot(d.m.position.x,d.m.position.z,"#f2b134",3.4); });
     dot(player.position.x,player.position.z,"#ff2222",3.6);
     if(train.wreck)dot(train.wreck.position.x+24,train.wreck.position.z-8,"#000",4);
   }

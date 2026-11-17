@@ -16,9 +16,9 @@
     --shadow:0 10px 30px rgba(20,40,35,.25);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;height:100%;overflow:hidden;background:#79c7d8;font-family:"Nunito Sans",system-ui,sans-serif;color:var(--ink);}
-  #game{position:fixed;inset:0;}
-  #game canvas{display:block;filter:saturate(1.08) contrast(1.05);}
+  html,body{margin:0;height:100%;height:100dvh;overflow:hidden;background:#79c7d8;font-family:"Nunito Sans",system-ui,sans-serif;color:var(--ink);overscroll-behavior:none;}
+  #game{position:fixed;inset:0;width:100vw;height:100dvh;}
+  #game canvas{display:block;width:100%;height:100%;filter:saturate(1.08) contrast(1.05);touch-action:none;}
   button{min-height:40px;font-family:inherit;cursor:pointer;}
   h1,h2,.fred{font-family:"Fredoka",sans-serif;}
 
@@ -66,16 +66,22 @@
   #vignette{position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 120px rgba(179,38,30,0);transition:box-shadow .4s;}
   #vignette.hot{box-shadow:inset 0 0 120px rgba(179,38,30,.55);}
 
-  /* touch controls */
-  #touch{position:absolute;inset:auto 0 0 0;display:none;pointer-events:none;padding:0 14px 16px;justify-content:space-between;align-items:flex-end;}
+  /* touch controls — two thumbs: left stick moves, right stick looks */
+  #touch{position:absolute;left:0;right:0;bottom:0;display:none;pointer-events:none;padding:0 max(14px,env(safe-area-inset-left)) max(14px,env(safe-area-inset-bottom));justify-content:space-between;align-items:flex-end;gap:12px;}
   body.touch #touch{display:flex;}
-  #stick{width:118px;height:118px;border-radius:50%;background:rgba(255,248,234,.35);border:2px solid rgba(255,255,255,.8);pointer-events:auto;position:relative;touch-action:none;}
-  #stickKnob{width:52px;height:52px;border-radius:50%;background:rgba(255,248,234,.92);border:2px solid var(--ink);position:absolute;left:33px;top:33px;}
-  .tbtns{display:flex;flex-direction:column;gap:10px;pointer-events:auto;align-items:flex-end;}
-  .tbtn{min-width:76px;min-height:52px;border-radius:14px;border:2px solid var(--ink);background:var(--panel);font-weight:800;font-size:14px;box-shadow:3px 3px 0 rgba(29,42,38,.8);}
+  .stick{width:124px;height:124px;flex:0 0 auto;border-radius:50%;background:rgba(255,248,234,.32);border:2px solid rgba(255,255,255,.85);pointer-events:auto;position:relative;touch-action:none;box-shadow:0 4px 18px rgba(20,40,35,.25);}
+  .stick::after{content:attr(data-label);position:absolute;left:0;right:0;bottom:-19px;text-align:center;font-size:10.5px;font-weight:800;letter-spacing:.08em;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.6);}
+  .knob{width:54px;height:54px;border-radius:50%;background:rgba(255,248,234,.94);border:2px solid var(--ink);position:absolute;left:35px;top:35px;pointer-events:none;}
+  .rightCluster{display:flex;flex-direction:column;gap:22px;pointer-events:none;align-items:flex-end;}
+  .tbtns{display:flex;gap:8px;pointer-events:auto;justify-content:flex-end;}
+  .tbtn{min-width:68px;min-height:48px;border-radius:14px;border:2px solid var(--ink);background:var(--panel);font-weight:800;font-size:13.5px;box-shadow:3px 3px 0 rgba(29,42,38,.8);touch-action:manipulation;}
   .tbtn.red{background:var(--red);color:#fff;}
-  #menuBtn{position:absolute;right:10px;bottom:190px;pointer-events:auto;display:none;}
+  #menuBtn{position:absolute;right:10px;bottom:238px;pointer-events:auto;display:none;}
   body.touch #menuBtn{display:block;}
+  #fsBtn{pointer-events:auto;}
+  /* portrait nudge — the park is a landscape game */
+  #rotateHint{position:absolute;left:50%;top:58px;transform:translateX(-50%);background:rgba(29,42,38,.92);color:#fff8ea;font-weight:800;font-size:13.5px;padding:9px 16px;border-radius:99px;border:2px solid #fff;display:none;box-shadow:var(--shadow);white-space:nowrap;max-width:94vw;}
+  @media (orientation:portrait) and (max-width:900px){ body.touch #rotateHint{display:block;} }
 
   #helpBar{position:absolute;left:10px;bottom:10px;background:rgba(29,42,38,.82);color:#fff8ea;border-radius:10px;padding:7px 12px;font-size:12.5px;font-weight:700;pointer-events:none;}
   @media (max-width:760px){ #helpBar{display:none;} }
@@ -96,6 +102,9 @@
   .keys b{background:var(--ink);color:#fff;border-radius:5px;padding:0 6px;font-size:12px;}
   #startBtn{width:100%;margin-top:16px;background:var(--teal);color:#fff;border:3px solid var(--ink);border-radius:14px;font-family:"Fredoka";font-size:21px;padding:12px;box-shadow:4px 4px 0 rgba(29,42,38,.9);}
   #startBtn:active{transform:translate(2px,2px);box-shadow:2px 2px 0 rgba(29,42,38,.9);}
+  #resumeBtn{width:100%;margin-top:16px;background:var(--gold);color:var(--ink);border:3px solid var(--ink);border-radius:14px;font-family:"Fredoka";font-size:21px;padding:12px;box-shadow:4px 4px 0 rgba(29,42,38,.9);}
+  #resumeBtn:active{transform:translate(2px,2px);box-shadow:2px 2px 0 rgba(29,42,38,.9);}
+  #resumeBtn + #startBtn{margin-top:10px;}
   .fine{font-size:12px;font-weight:600;opacity:.7;margin-top:10px;text-align:center;}
   @media (max-width:560px){
     .overlay{padding:10px;align-items:flex-start;}
@@ -138,6 +147,7 @@
     <div class="stat" id="wantedBox"><small>Wanted</small><span id="wantedStars">☆☆☆☆☆</span></div>
     <div class="stat"><small>Chaos</small><div class="chaosWrap"><div id="chaosBar"></div></div></div>
     <div class="stat" id="clockBox"><small id="uiDay">Day 1</small><span class="v" id="uiClock">9:00 AM</span></div>
+    <button class="stat" id="fsBtn" title="Full-screen landscape">⛶ Full screen</button>
   </div>
 
   <div id="panel">
@@ -153,6 +163,11 @@
     <div class="panelRow">
       <button id="dropGunBtn" class="alt" style="display:none">Put the gun back</button>
     </div>
+    <p id="saveStatus" style="margin-top:8px">💾 Autosave on — your park saves to this browser as you play. Come back any time and hit Resume.</p>
+    <div class="panelRow">
+      <button id="newParkBtn" style="background:var(--red)">🆕 New Park — start fresh</button>
+    </div>
+    <p style="margin-top:6px">New Park wipes your saved park and starts over on Day 1 with $500. Nothing is erased until you tap it a second time to confirm.</p>
     <canvas id="minimap" width="150" height="150"></canvas>
     <p style="text-align:center;margin-top:4px">You are the red dot. Try not to be.</p>
   </div>
@@ -168,11 +183,15 @@
   <div id="busted"><div>BUSTED!</div></div>
 
   <button id="menuBtn" class="tbtn">☰ Park</button>
+  <div id="rotateHint">📱↔ Rotate to landscape — or tap ⛶ Full screen</div>
   <div id="touch">
-    <div id="stick"><div id="stickKnob"></div></div>
-    <div class="tbtns">
-      <button class="tbtn red" id="btnShoot">SHOOT</button>
-      <button class="tbtn" id="btnUse">USE</button>
+    <div class="stick" id="stick" data-label="MOVE"><div class="knob" id="stickKnob"></div></div>
+    <div class="rightCluster">
+      <div class="tbtns">
+        <button class="tbtn red" id="btnShoot">SHOOT</button>
+        <button class="tbtn" id="btnUse">USE</button>
+      </div>
+      <div class="stick" id="lookStick" data-label="LOOK"><div class="knob" id="lookKnob"></div></div>
     </div>
   </div>
   <div id="helpBar">WASD move · Drag to look (first person) · <b>E</b> ride / interact / take a downed guard's gun · <b>V</b> first / third person · <b>Click</b> shoot (armed) · <b>R</b> coaster controls · Shift run</div>
@@ -204,8 +223,9 @@
     </div>
     <div class="keys">
       <b>W A S D</b> move &nbsp; <b>Mouse drag</b> look (first person) &nbsp; <b>E</b> board ride / interact / exit ride &nbsp; <b>V</b> first ↔ third person &nbsp; <b>Click</b> shoot &nbsp; <b>R</b> at the coaster booth &nbsp; <b>Shift</b> run<br>
-      On a phone: left stick to move, drag to look, USE boards / exits rides, SHOOT fires.
+      On a phone (landscape): <b>left thumb</b> stick moves, <b>right thumb</b> stick looks — two thumbs, no dragging. USE boards / exits rides, SHOOT fires. Opening the park goes full-screen landscape where your browser allows it. Your park autosaves in this browser as you play — Resume picks up right where you left off.
     </div>
+    <button id="resumeBtn" style="display:none">▶ Resume Saved Park</button>
     <button id="startBtn">Open the Park ▶</button>
     <p class="fine">Browser prototype — stylized 3D, built to test the design. Photo-realistic graphics are the Unreal PC build's job; this version proves the game loop, not the final look. Cork guns sting; nobody gets hurt.</p>
   </div>
@@ -268,6 +288,7 @@ var camera=new THREE.PerspectiveCamera(58, innerWidth/innerHeight, 0.1, 400);
 var renderer=new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(innerWidth,innerHeight);
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+var MAX_ANISO=Math.min(16,renderer.capabilities.getMaxAnisotropy()||8);
 renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
 renderer.outputEncoding=THREE.sRGBEncoding;
 renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.05;
@@ -335,52 +356,52 @@ var clouds=[];
 
 /* procedural textures */
 function brickTexture(){
-  var c=document.createElement("canvas"); c.width=c.height=256; var g=c.getContext("2d");
-  g.fillStyle="#9c4a38"; g.fillRect(0,0,256,256);
-  for(var r=0;r<8;r++)for(var b=0;b<4;b++){
-    var bx=(b*64+(r%2?32:0))%256, by=r*32;
+  var c=document.createElement("canvas"); c.width=c.height=512; var g=c.getContext("2d");
+  g.fillStyle="#9c4a38"; g.fillRect(0,0,512,512);
+  for(var r=0;r<16;r++)for(var b=0;b<8;b++){
+    var bx=(b*64+(r%2?32:0))%512, by=r*32;
     g.fillStyle=["#a85440","#8f4232","#b05a44"][Math.floor(Math.random()*3)]; g.fillRect(bx+2,by+2,60,28);
-    for(var n=0;n<40;n++){ g.fillStyle="rgba(60,20,10,0.18)"; g.fillRect(bx+Math.random()*60,by+Math.random()*28,2,2); }
+    for(var n=0;n<60;n++){ g.fillStyle="rgba(60,20,10,0.18)"; g.fillRect(bx+Math.random()*60,by+Math.random()*28,2,2); }
   }
-  g.fillStyle="rgba(230,215,190,0.9)"; for(var m=0;m<8;m++)g.fillRect(0,m*32,256,2.5);
-  var t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=8; return t;
+  g.fillStyle="rgba(230,215,190,0.9)"; for(var m=0;m<16;m++)g.fillRect(0,m*32,512,2.5);
+  var t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=MAX_ANISO; return t;
 }
 function plateTexture(){
-  var c=document.createElement("canvas"); c.width=c.height=256; var g=c.getContext("2d");
-  g.fillStyle="#5a666d"; g.fillRect(0,0,256,256);
-  for(var i=0;i<3000;i++){ g.fillStyle=Math.random()<0.5?"#4c585e":"#6a767d"; g.fillRect(Math.random()*256,Math.random()*256,2,2); }
+  var c=document.createElement("canvas"); c.width=c.height=512; var g=c.getContext("2d");
+  g.fillStyle="#5a666d"; g.fillRect(0,0,512,512);
+  for(var i=0;i<12000;i++){ g.fillStyle=Math.random()<0.5?"#4c585e":"#6a767d"; g.fillRect(Math.random()*512,Math.random()*512,2,2); }
   g.fillStyle="rgba(255,255,255,0.35)";
-  for(var y=0;y<8;y++)for(var x=0;x<8;x++){ g.save(); g.translate(x*32+16,y*32+16); g.rotate(0.6); g.fillRect(-7,-2,14,4); g.restore(); }
-  var t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(3,3); t.anisotropy=8; return t;
+  for(var y=0;y<16;y++)for(var x=0;x<16;x++){ g.save(); g.translate(x*32+16,y*32+16); g.rotate(0.6); g.fillRect(-7,-2,14,4); g.restore(); }
+  var t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(3,3); t.anisotropy=MAX_ANISO; return t;
 }
 function grassTexture(){
-  var c=document.createElement("canvas"); c.width=c.height=1024; var g=c.getContext("2d");
-  g.fillStyle="#67a84e"; g.fillRect(0,0,1024,1024);
+  var c=document.createElement("canvas"); c.width=c.height=2048; var g=c.getContext("2d");
+  g.fillStyle="#67a84e"; g.fillRect(0,0,2048,2048);
   var shades=["#5da34c","#77c061","#5c9a48","#71b657","#649f50"];
-  for(var i=0;i<2600;i++){ g.fillStyle=shades[i%5]; g.globalAlpha=0.22+Math.random()*0.3; var r=10+Math.random()*44; g.beginPath(); g.ellipse(Math.random()*1024,Math.random()*1024,r,r*0.6,Math.random()*3,0,7); g.fill(); }
+  for(var i=0;i<5200;i++){ g.fillStyle=shades[i%5]; g.globalAlpha=0.22+Math.random()*0.3; var r=20+Math.random()*88; g.beginPath(); g.ellipse(Math.random()*2048,Math.random()*2048,r,r*0.6,Math.random()*3,0,7); g.fill(); }
   g.globalAlpha=1;
-  for(var j=0;j<16000;j++){ g.fillStyle=Math.random()<0.5?"#548f43":"#7fc46a"; g.fillRect(Math.random()*1024,Math.random()*1024,2,4); }
-  for(var k=0;k<700;k++){ g.fillStyle="#8a7a4a"; g.globalAlpha=0.25; g.fillRect(Math.random()*1024,Math.random()*1024,3,2); g.globalAlpha=1; }
-  for(var d2=0;d2<900;d2++){ g.fillStyle="rgba(40,70,30,0.35)"; g.fillRect(Math.random()*1024,Math.random()*1024,1.5,6); }
-  var t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(26,26); t.anisotropy=8; return t;
+  for(var j=0;j<52000;j++){ g.fillStyle=Math.random()<0.5?"#548f43":"#7fc46a"; g.fillRect(Math.random()*2048,Math.random()*2048,2.5,6); }
+  for(var k=0;k<1600;k++){ g.fillStyle="#8a7a4a"; g.globalAlpha=0.25; g.fillRect(Math.random()*2048,Math.random()*2048,4,3); g.globalAlpha=1; }
+  for(var d2=0;d2<2400;d2++){ g.fillStyle="rgba(40,70,30,0.35)"; g.fillRect(Math.random()*2048,Math.random()*2048,2,9); }
+  var t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(26,26); t.anisotropy=MAX_ANISO; return t;
 }
 function concreteTexture(){
-  var c=document.createElement("canvas"); c.width=c.height=256; var g=c.getContext("2d");
-  g.fillStyle="#ded2b0"; g.fillRect(0,0,256,256);
-  for(var i=0;i<2400;i++){ g.fillStyle=Math.random()<0.5?"#cfc19c":"#eae0c2"; g.fillRect(Math.random()*256,Math.random()*256,2,2); }
-  for(var j=0;j<26;j++){ g.fillStyle="rgba(120,105,70,0.16)"; g.beginPath(); g.ellipse(Math.random()*256,Math.random()*256,10+Math.random()*26,6+Math.random()*14,Math.random()*3,0,7); g.fill(); }
-  g.strokeStyle="rgba(110,95,60,0.35)"; g.lineWidth=2; g.strokeRect(1,1,254,254);
-  var t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(6,6); t.anisotropy=8; return t;
+  var c=document.createElement("canvas"); c.width=c.height=512; var g=c.getContext("2d");
+  g.fillStyle="#ded2b0"; g.fillRect(0,0,512,512);
+  for(var i=0;i<9600;i++){ g.fillStyle=Math.random()<0.5?"#cfc19c":"#eae0c2"; g.fillRect(Math.random()*512,Math.random()*512,2,2); }
+  for(var j=0;j<52;j++){ g.fillStyle="rgba(120,105,70,0.16)"; g.beginPath(); g.ellipse(Math.random()*512,Math.random()*512,20+Math.random()*52,12+Math.random()*28,Math.random()*3,0,7); g.fill(); }
+  g.strokeStyle="rgba(110,95,60,0.35)"; g.lineWidth=3; g.strokeRect(1,1,510,510);
+  var t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(6,6); t.anisotropy=MAX_ANISO; return t;
 }
 function woodTexture(){
-  var c=document.createElement("canvas"); c.width=256; c.height=256; var g=c.getContext("2d");
-  g.fillStyle="#a9743a"; g.fillRect(0,0,256,256);
-  for(var p=0;p<4;p++){
-    g.fillStyle=p%2?"#a06c34":"#b37c40"; g.fillRect(0,p*64,256,64);
-    for(var i=0;i<46;i++){ g.strokeStyle="rgba(90,55,20,"+(0.08+Math.random()*0.14)+")"; g.lineWidth=1+Math.random()*1.5; g.beginPath(); var y=p*64+Math.random()*64; g.moveTo(0,y); g.bezierCurveTo(80,y+3,170,y-3,256,y+2); g.stroke(); }
-    g.fillStyle="rgba(60,35,12,0.55)"; g.fillRect(0,p*64,256,2.5);
+  var c=document.createElement("canvas"); c.width=512; c.height=512; var g=c.getContext("2d");
+  g.fillStyle="#a9743a"; g.fillRect(0,0,512,512);
+  for(var p=0;p<8;p++){
+    g.fillStyle=p%2?"#a06c34":"#b37c40"; g.fillRect(0,p*64,512,64);
+    for(var i=0;i<70;i++){ g.strokeStyle="rgba(90,55,20,"+(0.08+Math.random()*0.14)+")"; g.lineWidth=1+Math.random()*1.5; g.beginPath(); var y=p*64+Math.random()*64; g.moveTo(0,y); g.bezierCurveTo(160,y+4,340,y-4,512,y+3); g.stroke(); }
+    g.fillStyle="rgba(60,35,12,0.55)"; g.fillRect(0,p*64,512,2.5);
   }
-  var t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=8; return t;
+  var t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=MAX_ANISO; return t;
 }
 function glowTexture(){
   var c=document.createElement("canvas"); c.width=c.height=128; var g=c.getContext("2d");
@@ -391,9 +412,9 @@ function glowTexture(){
 }
 var GLOWTEX=null; // set after THREE loads below
 function stripeTexture(a,b){
-  var c=document.createElement("canvas"); c.width=128; c.height=32; var g=c.getContext("2d");
-  for(var i=0;i<8;i++){ g.fillStyle=i%2?a:b; g.fillRect(i*16,0,16,32); }
-  var t=new THREE.CanvasTexture(c); t.wrapS=THREE.RepeatWrapping; return t;
+  var c=document.createElement("canvas"); c.width=256; c.height=64; var g=c.getContext("2d");
+  for(var i=0;i<16;i++){ g.fillStyle=i%2?a:b; g.fillRect(i*16,0,16,64); }
+  var t=new THREE.CanvasTexture(c); t.wrapS=THREE.RepeatWrapping; t.anisotropy=MAX_ANISO; return t;
 }
 function mat(color,rough){ return new THREE.MeshStandardMaterial({color:color,roughness:rough==null?0.9:rough,envMapIntensity:0.5}); }
 function matMetal(color){ return new THREE.MeshStandardMaterial({color:color,roughness:0.36,metalness:0.68,envMapIntensity:0.95}); }
@@ -846,27 +867,54 @@ addEventListener("pointerup",function(e){
   if(dragging&&dragMoved<6&&S.armed&&S.started&&!S.paused&&e.target===el) shoot();
   dragging=false;
 });
-/* touch */
-var isTouch=("ontouchstart" in window);
+/* touch — two thumbs: left stick = move, right stick = look */
+var isTouch=("ontouchstart" in window)||(window.matchMedia&&matchMedia("(pointer: coarse)").matches);
 if(isTouch)document.body.classList.add("touch");
 var stickVec={x:0,y:0};
-(function(){
-  var stick=document.getElementById("stick"), knob=document.getElementById("stickKnob"), active=null;
-  stick.addEventListener("pointerdown",function(e){ active=e.pointerId; stick.setPointerCapture(e.pointerId); move(e); audio(); });
-  stick.addEventListener("pointermove",function(e){ if(e.pointerId===active)move(e); });
-  function end(e){ if(e.pointerId===active){ active=null; stickVec.x=0; stickVec.y=0; knob.style.left="33px"; knob.style.top="33px"; } }
-  stick.addEventListener("pointerup",end); stick.addEventListener("pointercancel",end);
+var lookVec={x:0,y:0};
+function bindStick(stickId,knobId,vec){
+  var stick=document.getElementById(stickId), knob=document.getElementById(knobId), active=null;
+  if(!stick||!knob)return;
+  function recenter(){ knob.style.left="35px"; knob.style.top="35px"; }
   function move(e){
     var r=stick.getBoundingClientRect(), cx=r.left+r.width/2, cy=r.top+r.height/2;
-    var dx=e.clientX-cx, dy=e.clientY-cy, d=Math.hypot(dx,dy), max=36;
+    var dx=e.clientX-cx, dy=e.clientY-cy, d=Math.hypot(dx,dy), max=38;
     if(d>max){ dx*=max/d; dy*=max/d; }
-    stickVec.x=dx/max; stickVec.y=dy/max;
-    knob.style.left=(33+dx)+"px"; knob.style.top=(33+dy)+"px";
+    /* small dead zone so a resting thumb doesn't drift the park */
+    vec.x=(Math.abs(dx/max)<0.12)?0:dx/max; vec.y=(Math.abs(dy/max)<0.12)?0:dy/max;
+    knob.style.left=(35+dx)+"px"; knob.style.top=(35+dy)+"px";
   }
-  document.getElementById("btnUse").addEventListener("click",function(){ audio(); doInteract(); });
-  document.getElementById("btnShoot").addEventListener("click",function(){ audio(); if(S.armed)shoot(); else toast("No gun — the shooting gallery hands out cork guns (SE). Guards carry the real ones."); });
-  document.getElementById("menuBtn").addEventListener("click",function(){ document.getElementById("panel").classList.toggle("open"); });
-})();
+  function end(e){ if(e.pointerId===active){ active=null; vec.x=0; vec.y=0; recenter(); } }
+  stick.addEventListener("pointerdown",function(e){ e.preventDefault(); active=e.pointerId; try{stick.setPointerCapture(e.pointerId);}catch(err){} move(e); audio(); });
+  stick.addEventListener("pointermove",function(e){ if(e.pointerId===active)move(e); });
+  stick.addEventListener("pointerup",end); stick.addEventListener("pointercancel",end);
+}
+bindStick("stick","stickKnob",stickVec);
+bindStick("lookStick","lookKnob",lookVec);
+document.getElementById("btnUse").addEventListener("click",function(){ audio(); doInteract(); });
+document.getElementById("btnShoot").addEventListener("click",function(){ audio(); if(S.armed)shoot(); else toast("No gun — the shooting gallery hands out cork guns (SE). Guards carry the real ones."); });
+document.getElementById("menuBtn").addEventListener("click",function(){ document.getElementById("panel").classList.toggle("open"); });
+
+/* full-screen landscape */
+function goFullscreenLandscape(){
+  var root=document.documentElement;
+  try{
+    var p=null;
+    if(!document.fullscreenElement&&root.requestFullscreen)p=root.requestFullscreen({navigationUI:"hide"}).catch(function(){ return root.requestFullscreen(); });
+    Promise.resolve(p).then(function(){
+      if(screen.orientation&&screen.orientation.lock)screen.orientation.lock("landscape").catch(function(){});
+    }).catch(function(){});
+  }catch(e){ /* fullscreen is best-effort — the game runs fine windowed too */ }
+  setTimeout(onResizeGame,350);
+}
+function onResizeGame(){
+  var w=innerWidth, h=innerHeight;
+  if(window.visualViewport){ w=Math.round(visualViewport.width); h=Math.round(visualViewport.height); }
+  camera.aspect=w/h; camera.updateProjectionMatrix();
+  renderer.setSize(w,h);
+}
+document.getElementById("fsBtn").addEventListener("click",function(){ audio(); goFullscreenLandscape(); });
+if(window.visualViewport)visualViewport.addEventListener("resize",onResizeGame);
 
 /* ============================== UI HELPERS ============================== */
 var toastTimer=null;
@@ -911,6 +959,7 @@ function setWeapon(w){
   var db=document.getElementById("dropGunBtn");
   db.style.display=S.armed?"block":"none";
   db.textContent=(w==="real")?"Drop the real gun":"Put the gun back";
+  autosave();
 }
 var droppedGuns=[];
 function dropGuardGun(gd){
@@ -1134,6 +1183,25 @@ function repairCoaster(){
 }
 document.getElementById("repairBtn").addEventListener("click",repairCoaster);
 
+/* built-item tracking (so a saved park can be rebuilt exactly) */
+var builtItems=[];
+function recordBuilt(type,x,z,rot){
+  var before=colliders.length, g;
+  if(type==="stall")g=makeStall(x,z,rot);
+  else if(type==="bench")g=makeBench(x,z,rot);
+  else if(type==="tree")g=makeTree(x,z);
+  else g=makeLamp(x,z);
+  builtItems.push({type:type,x:x,z:z,rot:rot||0,group:g,colls:colliders.slice(before)});
+  return g;
+}
+function clearBuilt(){
+  builtItems.forEach(function(it){
+    if(it.group)scene.remove(it.group);
+    it.colls.forEach(function(c){ var i=colliders.indexOf(c); if(i>=0)colliders.splice(i,1); });
+  });
+  builtItems=[];
+}
+
 /* building */
 var ghost=null, ghostType=null;
 var buildCosts={stall:300,bench:50,tree:40,lamp:60};
@@ -1178,11 +1246,9 @@ addEventListener("pointerup",function(e){
     if(S.money>=cost){
       addMoney(-cost);
       var x=ghost.position.x, z=ghost.position.z;
-      if(type==="stall")makeStall(x,z,Math.random()*3);
-      else if(type==="bench")makeBench(x,z,Math.random()*3);
-      else if(type==="tree")makeTree(x,z);
-      else makeLamp(x,z);
+      recordBuilt(type,x,z,Math.random()*3);
       S.happiness=Math.min(100,S.happiness+(type==="stall"?2:1));
+      autosave();
       sfxCoin(); toast("Built! Guests approve. +happiness");
       if(S.money<cost)cancelBuild();
     }
@@ -1190,9 +1256,140 @@ addEventListener("pointerup",function(e){
   el._placeArmed=false;
 });
 
+/* ============================== SAVE / AUTOSAVE ==============================
+   The park autosaves to this browser's localStorage as you play — cash,
+   day, time, happiness, chaos, wanted level, weapon, coaster state,
+   player position/camera, and every built stall/bench/tree/lamp.
+   On load, a saved park offers Resume. The save is only wiped when the
+   player deliberately confirms New Park in the Park panel. */
+var SAVE_KEY="theme-park-simulator-save-v1";
+function collectSave(){
+  return {
+    app:"theme-park-simulator", version:2, savedAt:new Date().toISOString(),
+    state:{ money:S.money, day:S.day, time:S.time, happiness:S.happiness, chaos:S.chaos, wanted:S.wanted,
+      weapon:S.weapon, dayEarned:S.dayEarned, dayGuests:S.dayGuests, dayIncidents:S.dayIncidents,
+      totalIncidents:S.totalIncidents, coasterState:S.coasterState, viewFP:S.viewFP },
+    player:{ x:player.position.x, z:player.position.z },
+    camYaw:camYaw, lookPitch:lookPitch, camPitch:camPitch, trainU:train.u,
+    built:builtItems.map(function(it){ return {type:it.type,x:it.x,z:it.z,rot:it.rot}; })
+  };
+}
+function autosave(){
+  if(!S.started||S.paused)return;
+  try{
+    localStorage.setItem(SAVE_KEY, JSON.stringify(collectSave()));
+    var ss=document.getElementById("saveStatus");
+    if(ss)ss.textContent="💾 Autosaved — Day "+S.day+", "+fmtTime(S.time)+", "+money(S.money)+" on hand. Resume any time from the start screen.";
+  }catch(e){ /* storage unavailable (private mode etc.) — the game still plays */ }
+}
+function readSave(){
+  try{
+    var raw=localStorage.getItem(SAVE_KEY);
+    if(!raw)return null;
+    var d=JSON.parse(raw);
+    return (d&&d.state)?d:null;
+  }catch(e){ return null; }
+}
+function wipeSave(){ try{ localStorage.removeItem(SAVE_KEY); }catch(e){} }
+document.addEventListener("visibilitychange",function(){ if(document.hidden)autosave(); });
+addEventListener("pagehide",function(){ autosave(); });
+function loadGame(data){
+  if(!data||!data.state)throw new Error("bad save");
+  var st=data.state;
+  if(S.riding)exitRide();
+  cancelBuild();
+  clearBuilt();
+  S.money=+st.money||0; S.day=+st.day||1; S.time=+st.time||540; S.happiness=+st.happiness||80;
+  S.chaos=+st.chaos||0; S.wanted=+st.wanted||0;
+  S.dayEarned=+st.dayEarned||0; S.dayGuests=+st.dayGuests||0; S.dayIncidents=+st.dayIncidents||0;
+  S.totalIncidents=+st.totalIncidents||0;
+  S.viewFP=st.viewFP!==false;
+  player.visible=S.viewFP?false:true;
+  document.getElementById("viewTag").textContent=S.viewFP?"👁 FIRST PERSON — you ARE a guest now · V to switch view":"🎥 THIRD PERSON · V for first person";
+  if(data.player){ player.position.x=Math.max(-PARK+1,Math.min(PARK-1,+data.player.x||0)); player.position.z=Math.max(-PARK+1,Math.min(PARK-1,+data.player.z||(PARK-6))); }
+  if(typeof data.camYaw==="number")camYaw=data.camYaw;
+  if(typeof data.lookPitch==="number")lookPitch=data.lookPitch;
+  if(typeof data.camPitch==="number")camPitch=data.camPitch;
+  if(typeof data.trainU==="number")train.u=data.trainU;
+  (data.built||[]).forEach(function(it){ if(it&&buildCosts[it.type]!=null)recordBuilt(it.type,+it.x||0,+it.z||0,+it.rot||0); });
+  /* coaster state */
+  train.wreck=null; train.wreckVel=null;
+  if(st.coasterState==="wrecked"){
+    S.coasterState="wrecked";
+    train.wreck=trainCars[0]; train.wreckT=99;
+    train.wreckVel=new THREE.Vector3(0,0,0); train.wreckSpin=new THREE.Vector3(0,0,0);
+    train.wreck.position.set(2,0.55,8); train.wreck.rotation.set(0.4,0.7,1.2);
+    document.getElementById("repairBtn").style.display="block";
+  } else {
+    S.coasterState="running"; placeTrain();
+    document.getElementById("repairBtn").style.display="none";
+  }
+  setWeapon(st.weapon==="real"||st.weapon==="cork"?st.weapon:"none");
+  S.paused=false;
+  updateHUD();
+  toast("▶ Park resumed — Day "+S.day+", "+fmtTime(S.time)+", "+money(S.money)+" on hand. Welcome back.",3200);
+}
+
+/* start fresh: wipe the save and reset the whole park to Day 1 defaults.
+   Only ever runs when the player confirms New Park (two taps) or picks
+   "Start a New Park" over Resume on the start screen. */
+function resetPark(){
+  if(S.riding)exitRide();
+  cancelBuild();
+  clearBuilt();
+  wipeSave();
+  S.money=500; S.day=1; S.time=9*60; S.happiness=82; S.chaos=0; S.wanted=0; S.heat=0;
+  S.dayEarned=0; S.dayGuests=0; S.dayIncidents=0; S.totalIncidents=0;
+  S.coasterState="running"; S.paused=false;
+  train.wreck=null; train.wreckVel=null; train.u=0; placeTrain();
+  trainCars.forEach(function(c){ c.visible=true; });
+  document.getElementById("repairBtn").style.display="none";
+  setWeapon("none");
+  S.viewFP=true; player.visible=false;
+  document.getElementById("viewTag").textContent="👁 FIRST PERSON — you ARE a guest now · V to switch view";
+  player.position.set(0,0,PARK-6); camYaw=Math.PI; lookPitch=0; camPitch=0.32;
+  document.getElementById("dayCard").classList.remove("show");
+  document.getElementById("vignette").classList.remove("hot");
+  updateHUD();
+  autosave();
+  toast("🆕 Fresh park — Day 1, $500, clean slate. Gates open!",3200);
+}
+var newParkArmed=false, newParkTimer=null;
+document.getElementById("newParkBtn").addEventListener("click",function(){
+  audio();
+  var b=this;
+  if(!newParkArmed){
+    newParkArmed=true;
+    b.textContent="⚠ Tap again to wipe this park & start fresh";
+    newParkTimer=setTimeout(function(){ newParkArmed=false; b.textContent="🆕 New Park — start fresh"; },4500);
+    return;
+  }
+  clearTimeout(newParkTimer); newParkArmed=false; b.textContent="🆕 New Park — start fresh";
+  resetPark();
+});
+
+/* Resume: if a saved park exists in this browser, offer it on the start screen */
+var savedAtLoad=readSave();
+if(savedAtLoad){
+  var rb=document.getElementById("resumeBtn");
+  rb.style.display="block";
+  rb.textContent="▶ Resume — Day "+(savedAtLoad.state.day||1)+" · "+money(savedAtLoad.state.money||0)+" saved";
+  document.getElementById("startBtn").textContent="Start a New Park ▶";
+}
+document.getElementById("resumeBtn").addEventListener("click",function(){
+  audio();
+  goFullscreenLandscape();
+  document.getElementById("startOverlay").style.display="none";
+  document.getElementById("hud").classList.add("on");
+  S.started=true;
+  var d=readSave();
+  if(d){ try{ loadGame(d); }catch(e){ toast("That saved park couldn't be read — you're starting fresh."); } }
+  autosave();
+});
+
 /* ============================== GAME LOOP ============================== */
 var clockT=new THREE.Clock();
-var econT=0, spawnT=0, minimapT=0, promptT=0;
+var econT=0, spawnT=0, minimapT=0, promptT=0, saveT=3;
 var mm=document.getElementById("minimap").getContext("2d");
 
 function fmtTime(mins){
@@ -1234,7 +1431,8 @@ document.getElementById("nextDayBtn").addEventListener("click",function(){
   S.chaos=Math.max(0,S.chaos-40); if(S.chaos<10)S.wanted=0;
   S.happiness=Math.min(100,S.happiness+8);
   document.getElementById("dayCard").classList.remove("show");
-  S.paused=false; toast("Day "+S.day+" — gates open. A fresh start. Again.");
+  S.paused=false; autosave();
+  toast("Day "+S.day+" — gates open. A fresh start. Again.");
 });
 
 function busted(){
@@ -1361,6 +1559,12 @@ function animate(){
   if(keys["w"]||keys["arrowup"])iz-=1; if(keys["s"]||keys["arrowdown"])iz+=1;
   if(keys["a"]||keys["arrowleft"])ix-=1; if(keys["d"]||keys["arrowright"])ix+=1;
   ix+=stickVec.x; iz+=stickVec.y;
+  /* right thumb stick: continuous look — yaw always, pitch for first person / rides */
+  if(lookVec.x||lookVec.y){
+    camYaw-=lookVec.x*dt*3.0;
+    lookPitch=Math.max(-1.25,Math.min(1.25,lookPitch-lookVec.y*dt*2.0));
+    camPitch=Math.max(0.08,Math.min(1.1,camPitch+lookVec.y*dt*1.0));
+  }
   if(S.riding){ ix=0; iz=0; }
   var il=Math.hypot(ix,iz); if(il>1){ix/=il;iz/=il;}
   var run=(keys["shift"])?6.4:3.8;
@@ -1493,6 +1697,10 @@ function animate(){
     walkAnim(gd,dt,!arr);
   });
 
+  /* ---- autosave: snapshot the park to localStorage every few seconds ---- */
+  saveT-=dt;
+  if(saveT<=0){ saveT=4; autosave(); }
+
   /* ---- economy ---- */
   econT-=dt;
   if(econT<=0){
@@ -1557,19 +1765,22 @@ animate();
 /* ============================== START ============================== */
 document.getElementById("startBtn").addEventListener("click",function(){
   audio();
+  /* choosing a new park over Resume is a deliberate fresh start — the old
+     save goes, and autosave immediately begins tracking the new park */
+  if(readSave())wipeSave();
+  goFullscreenLandscape();
   document.getElementById("startOverlay").style.display="none";
   document.getElementById("hud").classList.add("on");
   S.started=true;
+  autosave();
   player.visible=false; /* first person by default — you are a guest */
   setTimeout(function(){ if(!S.riding)toast("Walk to any ride and press E to ride it — first person. 🎡🐉🎢",3800); },4600);
   toast("Gates open! Guests are arriving. Run it however you want.",3200);
   setTimeout(function(){ if(!S.armed)toast("Tip: rides + happy guests = steady cash. Building helps too (Park panel, top right).",3600); },4200);
 });
 
-addEventListener("resize",function(){
-  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight);
-});
+addEventListener("resize",onResizeGame);
+addEventListener("orientationchange",function(){ setTimeout(onResizeGame,250); });
 })();
 </script>
 </body>
